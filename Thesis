@@ -1,0 +1,1760 @@
+###### THESIS R CODE ######
+
+###### PLOTTING GREY AND WHITE MATTER ######
+
+## LOAD DATA FRAME ## 
+load("/home/tayoub/FINAL_DATA_FRAME.RData")
+
+## LOAD DT.STRUC WHICH CONTAINS ALL THE ATLAS LABELS ##
+dt.struc <- read.csv('/hpf/largeprojects/MICe/jyeung/DSURQEE_60micron_invivo/DSURQEE_R_mapping.csv')
+
+## MATCHING STRUCTURE NAMES IN ATLAS TO STRUCTURE NAMES IN DATA ##
+dt.struc$Structure <- colnames(FINAL_DATA_FRAME)[which(colnames(FINAL_DATA_FRAME) == "amygdala"):(ncol(FINAL_DATA_FRAME))]
+
+## CREATE NEW DF CALLED DF_TISSUE KEEPING NON STRUCTURE COLUMNS ##
+df_tissue <- data.frame(FINAL_DATA_FRAME[,1:(which(colnames(FINAL_DATA_FRAME) == "amygdala")-1)])
+
+## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER WHITE MATTER TISSUE TYPE ##
+## SUM ALL WHITE MATTER STRUCTURES ##
+WM_list <- subset(dt.struc, tissue.type == "WM")[,1] 
+WM_list <- c(WM_list, "anterior lobule white matter") # ADDING STRUCTURE MANUALLY THAT SHOULD BE WM #
+# WHITE MATTER LIST CONSISTS OF 40 STRUCTURES #
+df_tissue$WM <- rowSums(FINAL_DATA_FRAME[,as.character(WM_list)], na.rm = TRUE)
+
+## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER GREY MATTER TISSUE TYPE ##
+## SUM ALL GREY MATTER STRUCTURES ##
+GM_list <- subset(dt.struc, tissue.type == "GM")[,1]
+GM_list <- c(GM_list, "midbrain", "medulla", "lateral septum", "medial septum") # ADDING STRUCTURES MANUALLY -- THESE ARE MIXED TISSUE MADE UP MOSTLY OF GM #
+# WHITE MATTER LIST CONSISTS OF 138 STRUCTURES #
+df_tissue$GM <- rowSums(FINAL_DATA_FRAME[,GM_list], na.rm = TRUE)
+
+## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER HIPPOCAMPUS TISSUE TYPE ##
+## SUM ALL HIPPOCAMPUS STRUCTURES ##
+HP_list <- subset(dt.struc, hierarchy == "Hippocampal region")[,1]
+# HIPPOCAMPUS HAS 15 STRUCTUES #
+df_tissue$HP <- rowSums(FINAL_DATA_FRAME[,HP_list], na.rm = TRUE)
+
+## LINEAR MODEL ##
+
+## FIRST SETTING FLAGS FOR LINEAR MODEL ##
+
+age_factor <- as.character(df_tissue$Age)
+sex_flag <- (df_tissue$Sex == "Male") * 1
+
+## TREATMENT FLAGS FOR EACH TIME POINT ##
+M_treatment_flag_28 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 28)
+F_treatment_flag_28 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 28)
+M_treatment_flag_42 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 42)
+F_treatment_flag_42 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 42)
+M_treatment_flag_63 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 63)
+F_treatment_flag_63 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 63)
+
+## GENOTYPE FLAGS FOR EACH TIME POINT ##
+M_genotype_flag_14 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 14)
+F_genotype_flag_14 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 14)
+M_genotype_flag_28 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 28)
+F_genotype_flag_28 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 28)
+M_genotype_flag_42 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 42)
+F_genotype_flag_42 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 42)
+M_genotype_flag_63 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 63)
+F_genotype_flag_63 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 63)
+
+## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE TO AVOID COUNTING THE SAME CAGE MULTIPLE TIMES)
+mean_litter_size <- mean(df_tissue$Litter_size[!duplicated(df_tissue$Home_cage)])
+sd_litter_size <- sd(df_tissue$Litter_size[!duplicated(df_tissue$Home_cage)])
+
+## CREATE Z-SCORE FOR LITTER SIZE TO STANDARDIZE IT ##
+df_tissue <- df_tissue %>%
+  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+
+## GREY MATTER FOR MIXED LINEAR EFFECTS MODEL ##
+
+formula_gm <- "`GM` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)"
+
+clm_gm <- lmer(formula_gm, data = df_tissue)
+slm_gm <- summary(clm_gm)
+slm_gm
+
+# SIGNIFICANT RESULTS FOR WT MICE =
+# M_TREATMENT_FLAG_28 = P < 0.001 
+# F_TREATMENT_FLAG_28 = P < 0.001 
+# M_TREATMENT_FLAG_42 = P < 0.05
+
+## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
+df_tissue <- df_tissue %>%
+  mutate(Group = paste(Genotype, Treatment, sep = "-"))
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_gm <- df_tissue$GM - ranef(clm_gm)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_gm)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
+df_tissue <- df_tissue %>%
+  mutate(GM_adjusted = adjusted_gm)
+
+## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
+df_tissue_filtered_gm <- df_tissue %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"))
+
+## SET FACTOR LEVELS FOR PLOTTING ORDER ##
+df_tissue_filtered_gm$Group <- factor(df_tissue_filtered_gm$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## CALCULATE SUMMARY STATS ##
+summary_df_gm <- df_tissue_filtered_gm %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_gm = mean(GM_adjusted, na.rm = TRUE),
+    se_gm = sd(GM_adjusted, na.rm = TRUE) / sqrt(length(GM_adjusted)),
+    ci_low = mean_gm - qt(0.975, df = length(GM_adjusted) - 1) * se_gm,
+    ci_high = mean_gm + qt(0.975, df = length(GM_adjusted) - 1) * se_gm,
+    .groups = 'drop'
+  )
+
+## DEFINE COLOURS ##
+my_colours_gm <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+
+## PLOT ##
+plot_gm <- ggplot(summary_df_gm, aes(x = as.character(Age), y = mean_gm, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +
+  geom_point(size = 4, position = position_dodge(width = 0.8)) +
+  geom_jitter(data = df_tissue_filtered_gm, aes(y = GM_adjusted, color = Group),
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
+  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +
+  facet_wrap(~Sex) +
+  labs(
+    title = "Grey Matter",
+    x = "Age (Days)", 
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_gm, labels = group_labels) +
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_text(size = 16),
+    axis.text.y = element_text(size = 16),
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+## DISPLAY THE PLOT ##
+print(plot_gm)
+
+
+## WHITE MATTER ##
+
+formula_wm <- "`WM` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)"
+
+clm_wm <- lmer(formula_wm, data = df_tissue)
+slm_wm <- summary(clm_wm)
+slm_wm
+
+# SIGNIFICANT RESULTS FOR WT MICE =
+# M_TREATMENT_FLAG_28 = P < 0.001 
+# F_TREATMENT_FLAG_28 = P < 0.01 
+
+## CREATE GROUP COLUMN (COMBING TREATMENT AND GENOTYPE) ## 
+df_tissue <- df_tissue %>%
+  mutate(Group = paste(Genotype, Treatment, sep = "-"))
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_wm <- df_tissue$WM - ranef(clm_wm)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_wm)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
+df_tissue <- df_tissue %>%
+  mutate(WM_adjusted = adjusted_wm)
+
+## FILTER DF_TISSUE TO INCLUDE ONLY WT-SALINE AND WT-MTX FOR PLOTTING ## 
+df_tissue_filtered_wm <- df_tissue %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"))
+
+## ENSURE THE GROUP COLUMN HAS THE CORRECT ORDER FOR PLOTTING ##
+df_tissue_filtered_wm$Group <- factor(df_tissue_filtered_wm$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## CALCULATING SUMMARY STAT FOR WM IN DF_TISSUE ## 
+summary_df_wm <- df_tissue_filtered_wm %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_wm = mean(WM_adjusted, na.rm = TRUE),
+    se_wm = sd(WM_adjusted, na.rm = TRUE) / sqrt(length(WM_adjusted)),
+    ci_low = mean_wm - qt(0.975, df = length(WM_adjusted) - 1) * se_wm,
+    ci_high = mean_wm + qt(0.975, df = length(WM_adjusted) - 1) * se_wm,
+    .groups = 'drop'
+  )
+
+## DEFINE COLOURS ##
+my_colours_wm <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+## PLOTTING ##
+plot_wm <- ggplot(summary_df_wm, aes(x = as.character(Age), y = mean_wm, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
+  geom_jitter(data = df_tissue_filtered_wm, aes(y = WM_adjusted, color = Group),
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
+  facet_wrap(~Sex) +  
+  labs(
+    title = "White Matter",
+    x = "Age (Days)", 
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_wm, labels = group_labels) +
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_text(size = 16),
+    axis.text.y = element_text(size = 16),
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+print(plot_wm)
+
+
+library(ggplot2)
+library(patchwork)
+
+## REMOVE LEGEND FROM GM PLOT ##
+plot_gm <- plot_gm + theme(legend.position = "none")
+
+## COMBINE PLOTS ##
+combined_plot <- plot_gm + plot_wm + plot_layout(ncol = 2)
+
+##DISPLAY##
+combined_plot
+
+##############################################################################
+## HIPPOCAMPUS ##
+
+formula_hp <- "`HP` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)"
+
+# Run the linear mixed-effects model
+clm_hp <- lmer(formula_hp, data = df_tissue)
+slm_hp <- summary(clm_hp)
+slm_hp
+
+# SIGNIFICANT RESULTS FOR WT MICE =
+# M_TREATMENT_FLAG_28 = P < 0.01 
+# F_TREATMENT_FLAG_28 = P < 0.05
+
+## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
+df_tissue <- df_tissue %>%
+  mutate(Group = paste(Genotype, Treatment, sep = "-"))
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_hp <- df_tissue$HP - ranef(clm_hp)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_hp)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
+df_tissue <- df_tissue %>%
+  mutate(HP_adjusted = adjusted_hp)
+
+## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
+df_tissue_filtered_hp <- df_tissue %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"))
+
+## SET FACTOR LEVELS FOR PLOTTING ORDER ##
+df_tissue_filtered_hp$Group <- factor(df_tissue_filtered_hp$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## CALCULATE SUMMARY STATS ##
+summary_df_hp <- df_tissue_filtered_hp %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_hp = mean(HP_adjusted, na.rm = TRUE),
+    se_hp = sd(HP_adjusted, na.rm = TRUE) / sqrt(length(HP_adjusted)),
+    ci_low = mean_hp - qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
+    ci_high = mean_hp + qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
+    .groups = 'drop'
+  )
+
+## DEFINE COLOURS ##
+my_colours_hp <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+
+## PLOTTING ##
+plot_hp <- ggplot(summary_df_hp, aes(x = as.character(Age), y = mean_hp, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
+  geom_jitter(data = df_tissue_filtered_hp, aes(y = HP_adjusted, color = Group),  # Use adjusted HP in filtered data
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
+  facet_wrap(~Sex) +  
+  labs(
+    title = "Hippocampus",
+    x = "Age (Days)", 
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_hp, labels = group_labels) +  # Uses same label style as GM
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_text(size = 16),
+    axis.text.y = element_text(size = 16),
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+## DISPLAY THE PLOT ##
+print(plot_hp)
+
+
+## THALAMUS ##
+
+## LINEAR MODEL ##
+
+## AGE AND SEX FLAGS ##
+age_factor <- as.character(FINAL_DATA_FRAME$Age)
+sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+
+## TREATMENT FLAGS ##
+M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+## GENOTYPE FLAGS ##
+M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
+F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
+M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+## CREATE GROUP COLUMN ##
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(Group = paste(Genotype, Treatment, sep = "-"))
+
+
+mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+
+## Z-SCORE ##
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+
+formula_thalamus <- "`thalamus` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)"
+
+# Run the linear mixed-effects model
+clm_thalamus <- lmer(formula_thalamus, data = FINAL_DATA_FRAME)
+slm_thalamus <- summary(clm_thalamus)
+slm_thalamus
+
+# WT MTX FEMALE DIFF @ P28 = -3.3 % #
+# WT MTX MALE DIFF @ P28 = -5.4 % #
+
+
+## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(Group = paste(Genotype, Treatment, sep = "-"))
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_thalamus <- FINAL_DATA_FRAME$`thalamus` - 
+  ranef(clm_thalamus)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
+  ranef(clm_thalamus)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(thalamus_adjusted = adjusted_thalamus)
+
+## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
+FINAL_DATA_FRAME_thalamus <- FINAL_DATA_FRAME %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"))
+
+## SET FACTOR LEVELS FOR PLOTTING ORDER ##
+FINAL_DATA_FRAME_thalamus$Group <- factor(FINAL_DATA_FRAME_thalamus$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## CALCULATE SUMMARY STATS ##
+summary_df_thalamus <- FINAL_DATA_FRAME_thalamus %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_thalamus = mean(thalamus_adjusted, na.rm = TRUE),
+    se_thalamus = sd(thalamus_adjusted, na.rm = TRUE) / sqrt(length(thalamus_adjusted)),
+    ci_low = mean_thalamus - qt(0.975, df = length(thalamus_adjusted) - 1) * se_thalamus,
+    ci_high = mean_thalamus + qt(0.975, df = length(thalamus_adjusted) - 1) * se_thalamus,
+    .groups = 'drop'
+  )
+
+## DEFINE COLOURS ##
+my_colours_thalamus <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+
+## PLOTTING THALAMUS ##
+plot_thalamus <- ggplot(summary_df_thalamus, aes(x = as.character(Age), y = mean_thalamus, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
+  geom_jitter(data = FINAL_DATA_FRAME_thalamus, aes(y = thalamus_adjusted, color = Group),  # Use adjusted thalamus in filtered data
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
+  facet_wrap(~Sex) +  
+  labs(
+    title = "Thalamus",
+    x = "Age (Days)", 
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_thalamus, labels = group_labels) +  # Uses same label style
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_text(size = 16),
+    axis.text.y = element_text(size = 16),
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+## DISPLAY THE PLOT ##
+print(plot_thalamus)
+
+#############################################################################
+
+#### NOW DOING ONLY P28 TIMEPOINT ####
+
+###### PRIMARY VISUAL CORTEX: BINOCULAR AREA ######
+
+## DEFINE FORMULA FOR PRIMARY VISUAL CORTEX: BINOCULAR AREA ##
+formula_pvc_b <- `Primary visual cortex: binocular area` ~ -1 + age_factor + age_factor:sex_flag + 
+  age_factor:z_litter_size +
+  M_treatment_flag_28 + F_treatment_flag_28 +
+  M_treatment_flag_42 + F_treatment_flag_42 + 
+  M_treatment_flag_63 + F_treatment_flag_63 + 
+  M_genotype_flag_14 + F_genotype_flag_14 +
+  M_genotype_flag_28 + F_genotype_flag_28 +
+  M_genotype_flag_42 + F_genotype_flag_42 + 
+  M_genotype_flag_63 + F_genotype_flag_63 +
+  M_treatment_flag_28:M_genotype_flag_28 +
+  F_treatment_flag_28:F_genotype_flag_28 +
+  M_treatment_flag_42:M_genotype_flag_42 +
+  F_treatment_flag_42:F_genotype_flag_42 +
+  M_treatment_flag_63:M_genotype_flag_63 +
+  F_treatment_flag_63:F_genotype_flag_63 +
+  (1|ID) + (1|Home_cage)
+
+## MODEL OUTPUT ## 
+clm_pvc_b <- lmer(formula_pvc_b, data = FINAL_DATA_FRAME)
+slm_pvc_b <- summary(clm_pvc_b)
+slm_pvc_b
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_pvc_b <- FINAL_DATA_FRAME$`Primary visual cortex: binocular area` - 
+  ranef(clm_pvc_b)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
+  ranef(clm_pvc_b)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(pvc_b_adjusted = adjusted_pvc_b)
+
+## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
+FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
+FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
+
+## CALCULATE SUMMARY STATISTICS FOR PRIMARY VISUAL CORTEX: BINOCULAR AREA ## 
+summary_df_pvc_b <- FINAL_DATA_FRAME_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_pvc_b = mean(pvc_b_adjusted, na.rm = TRUE),
+    se_pvc_b = sd(pvc_b_adjusted, na.rm = TRUE) / sqrt(length(pvc_b_adjusted)),
+    ci_low = mean_pvc_b - qt(0.975, df = length(pvc_b_adjusted) - 1) * se_pvc_b,
+    ci_high = mean_pvc_b + qt(0.975, df = length(pvc_b_adjusted) - 1) * se_pvc_b,
+    .groups = 'drop'
+  )
+
+## DEFINE COLORS ##
+my_colours_pvc_b <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+plot_pvc_b <- ggplot(summary_df_pvc_b, aes(x = as.character(Age), y = mean_pvc_b, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
+  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = pvc_b_adjusted, color = Group),  
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
+  labs(
+    title = "Primary Visual Cortex: Binocular Area (P28)",
+    x = NULL,
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_pvc_b, labels = group_labels) +  # Match thalamus plot
+  theme_minimal(base_size = 18) +  # Match base font size
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 16),
+    strip.placement = "outside",
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+print(plot_pvc_b)
+
+
+###### PRIMARY VISUAL CORTEX: MONOCULAR AREA ######
+
+## DEFINE FORMULA FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ##
+formula_pvc_m <- `Primary visual cortex: monocular area` ~ -1 + age_factor + age_factor:sex_flag + 
+  age_factor:z_litter_size +
+  M_treatment_flag_28 + F_treatment_flag_28 +
+  M_treatment_flag_42 + F_treatment_flag_42 + 
+  M_treatment_flag_63 + F_treatment_flag_63 + 
+  M_genotype_flag_14 + F_genotype_flag_14 +
+  M_genotype_flag_28 + F_genotype_flag_28 +
+  M_genotype_flag_42 + F_genotype_flag_42 + 
+  M_genotype_flag_63 + F_genotype_flag_63 +
+  M_treatment_flag_28:M_genotype_flag_28 +
+  F_treatment_flag_28:F_genotype_flag_28 +
+  M_treatment_flag_42:M_genotype_flag_42 +
+  F_treatment_flag_42:F_genotype_flag_42 +
+  M_treatment_flag_63:M_genotype_flag_63 +
+  F_treatment_flag_63:F_genotype_flag_63 +
+  (1|ID) + (1|Home_cage)
+
+## MODEL OUTPUT ## 
+clm_pvc_m <- lmer(formula_pvc_m, data = FINAL_DATA_FRAME)
+slm_pvc_m <- summary(clm_pvc_m)
+slm_pvc_m
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_pvc_m <- FINAL_DATA_FRAME$`Primary visual cortex: monocular area` - 
+  ranef(clm_pvc_m)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
+  ranef(clm_pvc_m)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(pvc_m_adjusted = adjusted_pvc_m)
+
+## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
+FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
+FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
+
+## CALCULATE SUMMARY STATISTICS FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ## 
+summary_df_pvc_m <- FINAL_DATA_FRAME_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_pvc_m = mean(pvc_m_adjusted, na.rm = TRUE),
+    se_pvc_m = sd(pvc_m_adjusted, na.rm = TRUE) / sqrt(length(pvc_m_adjusted)),
+    ci_low = mean_pvc_m - qt(0.975, df = length(pvc_m_adjusted) - 1) * se_pvc_m,
+    ci_high = mean_pvc_m + qt(0.975, df = length(pvc_m_adjusted) - 1) * se_pvc_m,
+    .groups = 'drop'
+  )
+
+## DEFINE COLORS ##
+my_colours_pvc_m <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
+)
+
+## PLOTTING FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ##
+plot_pvc_m <- ggplot(summary_df_pvc_m, aes(x = as.character(Age), y = mean_pvc_m, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
+  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = pvc_m_adjusted, color = Group),  
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
+  labs(
+    title = "Primary Visual Cortex: Monocular Area (P28)",
+    x = NULL,
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_pvc_m, labels = group_labels) +  # Match thalamus styling
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 16),
+    strip.placement = "outside",
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+plot(plot_pvc_m)
+
+
+###### SECONDARY VISUAL CORTEX: LATERAL AREA ######
+
+formula_svc <- `Secondary visual cortex: lateral area` ~ -1 + age_factor + age_factor:sex_flag + 
+  age_factor:z_litter_size +
+  M_treatment_flag_28 + F_treatment_flag_28 +
+  M_treatment_flag_42 + F_treatment_flag_42 + 
+  M_treatment_flag_63 + F_treatment_flag_63 + 
+  M_genotype_flag_14 + F_genotype_flag_14 +
+  M_genotype_flag_28 + F_genotype_flag_28 +
+  M_genotype_flag_42 + F_genotype_flag_42 + 
+  M_genotype_flag_63 + F_genotype_flag_63 +
+  M_treatment_flag_28:M_genotype_flag_28 +
+  F_treatment_flag_28:F_genotype_flag_28 +
+  M_treatment_flag_42:M_genotype_flag_42 +
+  F_treatment_flag_42:F_genotype_flag_42 +
+  M_treatment_flag_63:M_genotype_flag_63 +
+  F_treatment_flag_63:F_genotype_flag_63 +
+  (1|ID) + (1|Home_cage)
+
+## MODEL OUTPUT ## 
+clm_svc <- lmer(formula_svc, data = FINAL_DATA_FRAME)
+slm_svc <- summary(clm_svc)
+slm_svc
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_svc <- FINAL_DATA_FRAME$`Secondary visual cortex: lateral area` - 
+  ranef(clm_svc)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
+  ranef(clm_svc)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(secondary_visual_adjusted = adjusted_svc)
+
+## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
+FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
+FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
+
+## CALCULATE SUMMARY STATISTICS FOR SECONDARY VISUAL CORTEX: LATERAL AREA ## 
+summary_df_svc <- FINAL_DATA_FRAME_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_svc = mean(secondary_visual_adjusted, na.rm = TRUE),
+    se_svc = sd(secondary_visual_adjusted, na.rm = TRUE) / sqrt(length(secondary_visual_adjusted)),
+    ci_low = mean_svc - qt(0.975, df = length(secondary_visual_adjusted) - 1) * se_svc,
+    ci_high = mean_svc + qt(0.975, df = length(secondary_visual_adjusted) - 1) * se_svc,
+    .groups = 'drop'
+  )
+
+## DEFINE COLORS ##
+my_colours_svc <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+## PLOTTING FOR SECONDARY VISUAL CORTEX: LATERAL AREA ##
+plot_svc <- ggplot(summary_df_svc, aes(x = as.character(Age), y = mean_svc, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
+  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = secondary_visual_adjusted, color = Group),  
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
+  labs(
+    title = "Secondary Visual Cortex: Lateral Area (P28)",
+    x = NULL,
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_svc, labels = group_labels) +  # Match thalamus styling
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 16),
+    strip.placement = "outside",
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+print(plot_svc)
+
+
+###### PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ######
+
+formula_psc_hindlimb <- `Primary somatosensory cortex: hindlimb region` ~ -1 + age_factor + age_factor:sex_flag + 
+  age_factor:z_litter_size +
+  M_treatment_flag_28 + F_treatment_flag_28 +
+  M_treatment_flag_42 + F_treatment_flag_42 + 
+  M_treatment_flag_63 + F_treatment_flag_63 + 
+  M_genotype_flag_14 + F_genotype_flag_14 +
+  M_genotype_flag_28 + F_genotype_flag_28 +
+  M_genotype_flag_42 + F_genotype_flag_42 + 
+  M_genotype_flag_63 + F_genotype_flag_63 +
+  M_treatment_flag_28:M_genotype_flag_28 +
+  F_treatment_flag_28:F_genotype_flag_28 +
+  M_treatment_flag_42:M_genotype_flag_42 +
+  F_treatment_flag_42:F_genotype_flag_42 +
+  M_treatment_flag_63:M_genotype_flag_63 +
+  F_treatment_flag_63:F_genotype_flag_63 +
+  (1|ID) + (1|Home_cage)
+
+## MODEL OUTPUT ## 
+clm_psc_hindlimb <- lmer(formula_psc_hindlimb, data = FINAL_DATA_FRAME)
+slm_psc_hindlimb <- summary(clm_psc_hindlimb)
+slm_psc_hindlimb
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_psc_hindlimb <- FINAL_DATA_FRAME$`Primary somatosensory cortex: hindlimb region` - 
+  ranef(clm_psc_hindlimb)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
+  ranef(clm_psc_hindlimb)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(hindlimb_adjusted = adjusted_psc_hindlimb)
+
+## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
+FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
+
+## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
+FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
+
+## CALCULATE SUMMARY STATISTICS FOR PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ## 
+summary_df_psc_hindlimb <- FINAL_DATA_FRAME_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_psc_hindlimb = mean(hindlimb_adjusted, na.rm = TRUE),
+    se_psc_hindlimb = sd(hindlimb_adjusted, na.rm = TRUE) / sqrt(length(hindlimb_adjusted)),
+    ci_low = mean_psc_hindlimb - qt(0.975, df = length(hindlimb_adjusted) - 1) * se_psc_hindlimb,
+    ci_high = mean_psc_hindlimb + qt(0.975, df = length(hindlimb_adjusted) - 1) * se_psc_hindlimb,
+    .groups = 'drop'
+  )
+
+## DEFINE COLORS ##
+my_colours_psc_hindlimb <- c("WT-Saline" = "blue", "WT-MTX" = "red")
+
+## PLOTTING FOR PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ##
+plot_psc_hindlimb <- ggplot(summary_df_psc_hindlimb, aes(x = as.character(Age), y = mean_psc_hindlimb, group = Group, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
+  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = hindlimb_adjusted, color = Group),  
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
+  labs(
+    title = "Primary Somatosensory Cortex: Hindlimb Region (P28)",
+    x = NULL,
+    y = expression("Volume" ~ "(" * mm^3 * ")"),
+    color = "Groups"
+  ) +
+  scale_color_manual(values = my_colours_psc_hindlimb, labels = group_labels) +  # Match thalamus styling
+  theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "Arial", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 18),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 16),
+    strip.placement = "outside",
+    strip.text = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "right",
+    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+  )
+
+#################################################################################
+## MAKING HP PLTOS (SHOWING ALL 4 GROUPS AT P28) & PARIETAL LOBE ##
+## ALREADY RAN THE LINEAR MODEL FOR HP##
+
+## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+adjusted_hp <- df_tissue$HP -
+  ranef(clm_hp)$ID[as.character(df_tissue$ID), "(Intercept)"] -
+  ranef(clm_hp)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
+
+df_tissue <- df_tissue %>%
+  mutate(HP_adjusted = adjusted_hp)
+
+## SET PLOTTING ORDER
+df_tissue$Group <- factor(df_tissue$Group, levels = c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"))
+
+## FILTER FOR AGE 28 WITH ALL 4 GROUPS ##
+df_tissue_filtered <- df_tissue %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"), Age == 28)
+
+## CALCULATE MEAN, SE, CI FOR EACH GROUP
+summary_df_hp <- df_tissue_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_hp = mean(HP_adjusted, na.rm = TRUE),
+    se_hp = sd(HP_adjusted, na.rm = TRUE) / sqrt(length(HP_adjusted)),
+    ci_low = mean_hp - qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
+    ci_high = mean_hp + qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
+    .groups = 'drop'
+  )
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX"),
+  "KO-Saline" = bquote(italic("Il6")^"-/-" ~ "Saline"),
+  "KO-MTX"    = bquote(italic("Il6")^"-/-" ~ "MTX")
+)
+
+# Define custom colors
+my_colours_hp <- c(
+  "WT-Saline" = "blue",
+  "WT-MTX" = "red",
+  "KO-Saline" = "black",
+  "KO-MTX" = "grey"
+)
+
+# Plot
+plot_hp <- ggplot(summary_df_hp, aes(x = Group, y = mean_hp, color = Group)) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                width = 0.3, size = 1, position = position_dodge(width = 0.8)) +
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +
+  geom_jitter(data = df_tissue_filtered, aes(y = HP_adjusted, color = Group),
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
+  facet_wrap(~Sex, strip.position = "bottom") +
+  labs(
+    title = "Hippocampus (P28)",
+    x = NULL,
+    y = expression("Volume" ~ "(" * mm^3 * ")")
+  ) +
+  scale_color_manual(values = my_colours_hp) +
+  scale_x_discrete(labels = group_labels) +
+  theme_minimal(base_size = 14) +
+  theme(
+    text = element_text(family = "Arial", size = 14),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(face = "plain", size = 14),
+    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 14),
+    axis.ticks.x = element_blank(),
+    strip.placement = "outside",
+    strip.text = element_text(size = 14, face = "bold"),
+    legend.position = "none",
+    panel.border = element_blank(),
+    axis.line.y = element_line(color = "black", size = 0.5),
+    axis.line.x = element_line(color = "black", size = 0.5)
+  )
+
+# Display in console
+plot_hp
+
+
+#### FOR PARIETAL REGION (PR) WITH ALL 4 GROUPS AT P28 #### 
+## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER PR ##
+## SUM ALL PR STRUCTURES ##
+PR_list <- subset(dt.struc, hierarchy == "Parietal region")[,1]
+# PR HAS 13 STRUCTUES #
+df_tissue$PR <- rowSums(FINAL_DATA_FRAME[,PR_list], na.rm = TRUE)
+
+## LINEAR MODEL FOR PR ##
+formula_PR <- "`PR` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)"
+
+# Run the linear mixed-effects model
+clm_PR <- lmer(formula_PR, data = df_tissue)
+slm_PR <- summary(clm_PR)
+slm_PR
+
+## SIGNIFICANT INTERACTION IN FEMALES AT P28#
+# F_treatment_flag_28:F_genotype_flag_28 = 0.01777 * #
+#Estimate = -1.85748 # KO FEMALES DID WORSE #
+#NO INTERACTION EFFECT IN MALES#
+
+# Extract random effects for ID and Home_cage
+adjusted_pr <- df_tissue$PR -
+  ranef(clm_PR)$ID[as.character(df_tissue$ID), "(Intercept)"] -
+  ranef(clm_PR)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
+
+df_tissue <- df_tissue %>%
+  mutate(PR_adjusted = adjusted_pr)
+
+# Ensure correct group order
+df_tissue$Group <- factor(df_tissue$Group, levels = c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"))
+
+# Filter for age 28 only
+df_tissue_filtered <- df_tissue %>%
+  filter(Group %in% c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"), Age == 28)
+
+# Summary stats
+summary_df_pr <- df_tissue_filtered %>%
+  group_by(Age, Group, Sex) %>%
+  summarise(
+    mean_pr = mean(PR_adjusted, na.rm = TRUE),
+    se_pr = sd(PR_adjusted, na.rm = TRUE) / sqrt(length(PR_adjusted)),
+    ci_low = mean_pr - qt(0.975, df = length(PR_adjusted) - 1) * se_pr,
+    ci_high = mean_pr + qt(0.975, df = length(PR_adjusted) - 1) * se_pr,
+    .groups = 'drop'
+  )
+
+group_labels <- c(
+  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX"),
+  "KO-Saline" = bquote(italic("Il6")^"-/-" ~ "Saline"),
+  "KO-MTX"    = bquote(italic("Il6")^"-/-" ~ "MTX")
+)
+
+# Define colors
+my_colours_pr <- c("WT-Saline" = "blue", "WT-MTX" = "red", "KO-Saline" = "black", "KO-MTX" = "grey")
+
+
+# Plot
+plot_pr <- ggplot(summary_df_pr, aes(x = Group, y = mean_pr, color = Group)) + 
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                width = 0.3, size = 1, position = position_dodge(width = 0.8)) +  
+  geom_point(size = 5, position = position_dodge(width = 0.8)) +  
+  geom_jitter(data = df_tissue_filtered, aes(y = PR_adjusted, color = Group),
+              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+  facet_wrap(~Sex, strip.position = "bottom") +  
+  labs(
+    title = "Parietal Region (P28)",  
+    x = NULL,  
+    y = expression("Volume" ~ "(" * mm^3 * ")")  
+  ) +
+  scale_color_manual(values = my_colours_pr) +
+  scale_x_discrete(labels = group_labels) +
+  theme_minimal(base_size = 14) +  
+  theme(
+    text = element_text(family = "Arial", size = 14),  
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),  
+    axis.title.x = element_blank(),  
+    axis.title.y = element_text(face = "plain", size = 14),  
+    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),  
+    axis.text.y = element_text(size = 14),  
+    axis.ticks.x = element_blank(),  
+    strip.placement = "outside",  
+    strip.text = element_text(size = 14, face = "bold"),  
+    legend.position = "none",  
+    panel.border = element_blank(),  
+    axis.line.y = element_line(color = "black", size = 0.5),  
+    axis.line.x = element_line(color = "black", size = 0.5)  
+  )
+
+# Display in console
+plot_pr
+
+
+###################################################################
+
+
+## LOAD IN ALLRES DATA FRAME ## 
+## LOOPED EACH STRUCTURE THROUGH THE LINEAR MODEL ##
+load("/projects/tayoub/ALLRES.RData")
+
+## RUN FDR ##
+## THIS IS FOR FIGURE 5 TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE ##
+allres_p <- p.adjust(c(
+  allres$`F_treatment_flag_28.Pr(>|t|)`, allres$`M_treatment_flag_28.Pr(>|t|)`,
+  allres$`F_treatment_flag_42.Pr(>|t|)`, allres$`M_treatment_flag_42.Pr(>|t|)`,
+  allres$`F_treatment_flag_63.Pr(>|t|)`, allres$`M_treatment_flag_63.Pr(>|t|)`
+), "fdr")
+
+## EDIT DATAFRAME TO REPLACE P-VALUES WITH ADJUST P-VALUES (Q-VALUES)##
+allres$`F_treatment_flag_28.Pr(>|t|)` <- allres_p[1:nrow(allres)]
+allres$`M_treatment_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
+allres$`F_treatment_flag_42.Pr(>|t|)` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
+allres$`M_treatment_flag_42.Pr(>|t|)` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
+allres$`F_treatment_flag_63.Pr(>|t|)` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
+allres$`M_treatment_flag_63.Pr(>|t|)` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
+
+## SET ESTIMATES TO 0 FOR Q VALUES LESS THAN 0.1 ##
+allres$`F_treatment_flag_28.Estimate` <- allres$`F_treatment_flag_28.Estimate` * (allres$`F_treatment_flag_28.Pr(>|t|)` < 0.1)
+allres$`M_treatment_flag_28.Estimate` <- allres$`M_treatment_flag_28.Estimate` * (allres$`M_treatment_flag_28.Pr(>|t|)` < 0.1)
+allres$`F_treatment_flag_42.Estimate` <- allres$`F_treatment_flag_42.Estimate` * (allres$`F_treatment_flag_42.Pr(>|t|)` < 0.1)
+allres$`M_treatment_flag_42.Estimate` <- allres$`M_treatment_flag_42.Estimate` * (allres$`M_treatment_flag_42.Pr(>|t|)` < 0.1)
+allres$`F_treatment_flag_63.Estimate` <- allres$`F_treatment_flag_63.Estimate` * (allres$`F_treatment_flag_63.Pr(>|t|)` < 0.1)
+allres$`M_treatment_flag_63.Estimate` <- allres$`M_treatment_flag_63.Estimate` * (allres$`M_treatment_flag_63.Pr(>|t|)` < 0.1)
+
+## NOW PERCENT CHANGE ##
+
+## FOR WT FEMALE: USING AGE_FACTOR28 B/C F ARE BASELINES ## 
+F_WT_MTX_28_pc <- allres$F_treatment_flag_28.Estimate/allres$age_factor28.Estimate*100
+F_WT_MTX_42_pc <- allres$F_treatment_flag_42.Estimate/allres$age_factor42.Estimate*100
+F_WT_MTX_63_pc <- allres$F_treatment_flag_63.Estimate/allres$age_factor63.Estimate*100
+
+## FOR WT MALE: ADDING SEX FLAG TO AGE FACTOR TO GET BASELINE MALE 28 ##
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_WT_MTX_28_pc <- allres$M_treatment_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+
+Male_WT_Saline_Estimate_42 <- allres$'age_factor42:sex_flag.Estimate' + allres$'age_factor42.Estimate'
+M_WT_MTX_42_pc <- allres$M_treatment_flag_42.Estimate/Male_WT_Saline_Estimate_42*100
+
+Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'age_factor63.Estimate'
+M_WT_MTX_63_pc <- allres$M_treatment_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
+
+## CHECKING THE NUMBER OF STRUCTURES AFFECTED AT EACH TIMEPOINT THAT PASSED FDR THRESHOLD ##
+sum(F_WT_MTX_28_pc != 0) #34
+sum(M_WT_MTX_28_pc != 0) #59
+sum(F_WT_MTX_42_pc != 0) #4
+sum(M_WT_MTX_42_pc != 0) #8
+sum(F_WT_MTX_63_pc != 0) #0
+sum(M_WT_MTX_63_pc != 0) #0
+
+## CHECKING IF THERE IS A GENOTYPE EFFECT ##
+## THIS IS FOR FIGURE 6 TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE ##
+allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
+                       allres$`F_genotype_flag_28.Pr(>|t|)`, 
+                       allres$`F_genotype_flag_42.Pr(>|t|)`, 
+                       allres$`F_genotype_flag_63.Pr(>|t|)`, 
+                       allres$`M_genotype_flag_14.Pr(>|t|)`, 
+                       allres$`M_genotype_flag_28.Pr(>|t|)`, 
+                       allres$`M_genotype_flag_42.Pr(>|t|)`, 
+                       allres$`M_genotype_flag_63.Pr(>|t|)`), 
+                     method = "fdr")
+
+
+## REPLACE ORIGINAL P VALUE WITH ADJUSTED P VALUE ##
+allres$`F_genotype_flag_14.Pr(>|t|)` <- allres_p[1:nrow(allres)]
+allres$`F_genotype_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
+allres$`F_genotype_flag_42.Pr(>|t|)` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
+allres$`F_genotype_flag_63.Pr(>|t|)` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
+allres$`M_genotype_flag_14.Pr(>|t|)` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
+allres$`M_genotype_flag_28.Pr(>|t|)` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
+allres$`M_genotype_flag_42.Pr(>|t|)` <- allres_p[(6 * nrow(allres) + 1):(7 * nrow(allres))]
+allres$`M_genotype_flag_63.Pr(>|t|)` <- allres_p[(7 * nrow(allres) + 1):(8 * nrow(allres))]
+
+## UPDATE ESTIMATS BASED ON ADJUSTED P VALUES (Q VALUES) ## 
+allres$`F_genotype_flag_14.Estimate` <- allres$`F_genotype_flag_14.Estimate` * (allres$`F_genotype_flag_14.Pr(>|t|)` < 0.1)
+allres$`F_genotype_flag_28.Estimate` <- allres$`F_genotype_flag_28.Estimate` * (allres$`F_genotype_flag_28.Pr(>|t|)` < 0.1)
+allres$`F_genotype_flag_42.Estimate` <- allres$`F_genotype_flag_42.Estimate` * (allres$`F_genotype_flag_42.Pr(>|t|)` < 0.1)
+allres$`F_genotype_flag_63.Estimate` <- allres$`F_genotype_flag_63.Estimate` * (allres$`F_genotype_flag_63.Pr(>|t|)` < 0.1)
+allres$`M_genotype_flag_14.Estimate` <- allres$`M_genotype_flag_14.Estimate` * (allres$`M_genotype_flag_14.Pr(>|t|)` < 0.1)
+allres$`M_genotype_flag_28.Estimate` <- allres$`M_genotype_flag_28.Estimate` * (allres$`M_genotype_flag_28.Pr(>|t|)` < 0.1)
+allres$`M_genotype_flag_42.Estimate` <- allres$`M_genotype_flag_42.Estimate` * (allres$`M_genotype_flag_42.Pr(>|t|)` < 0.1)
+allres$`M_genotype_flag_63.Estimate` <- allres$`M_genotype_flag_63.Estimate` * (allres$`M_genotype_flag_63.Pr(>|t|)` < 0.1)
+
+
+## % CHANGE FOR FEMALE KO MICE # SCALING ##
+F_KO_14_pc <- allres$F_genotype_flag_14.Estimate/allres$age_factor14.Estimate*100
+F_KO_28_pc <- allres$F_genotype_flag_28.Estimate/allres$age_factor28.Estimate*100
+F_KO_42_pc <- allres$F_genotype_flag_42.Estimate/allres$age_factor42.Estimate*100
+F_KO_63_pc <- allres$F_genotype_flag_63.Estimate/allres$age_factor63.Estimate*100
+
+## % CHANGE FOR MALE KO MICE # SCALING ##
+Male_WT_Saline_Estimate_14 <- allres$'age_factor14:sex_flag.Estimate' + allres$'age_factor14.Estimate'
+M_KO_14_pc <- allres$M_genotype_flag_14.Estimate/Male_WT_Saline_Estimate_14*100
+
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_KO_28_pc <- allres$M_genotype_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+
+Male_WT_Saline_Estimate_42 <- allres$'age_factor42:sex_flag.Estimate' + allres$'age_factor42.Estimate'
+M_KO_42_pc <- allres$M_genotype_flag_42.Estimate/Male_WT_Saline_Estimate_42*100
+
+Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'age_factor63.Estimate'
+M_KO_63_pc <- allres$M_genotype_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
+
+
+## CHECKING HOW MANY STRUCTURES PASS THE FDR THRESHOLD AT EACH TIMEPOINT ##
+sum(F_KO_14_pc != 0) #0
+sum(F_KO_28_pc != 0) #1
+sum(F_KO_42_pc != 0) #0
+sum(F_KO_63_pc != 0) #1
+
+sum(M_KO_14_pc != 0) #5
+sum(M_KO_28_pc != 0) #0
+sum(M_KO_42_pc != 0) #0
+sum(M_KO_63_pc != 0) #0
+
+## MAKING HISTOGRAMS ##
+## MAKING HISTOGRAM FOR GENOTYPE EFFECT ##
+load("/projects/tayoub/ALLRES.RData")
+
+## BASELINE ESTIMATES FOR FEMALES ## 
+age_factor_14 <- allres$`age_factor14.Estimate`
+age_factor_28 <- allres$`age_factor28.Estimate`
+age_factor_42 <- allres$`age_factor42.Estimate`
+age_factor_63 <- allres$`age_factor63.Estimate`
+
+## MALE BASLEINES (WT+SALINE) FOR EACH AGE ## 
+Male_WT_Saline_Estimate_14 <- age_factor_14 + allres$`age_factor14:sex_flag.Estimate`
+Male_WT_Saline_Estimate_28 <- age_factor_28 + allres$`age_factor28:sex_flag.Estimate`
+Male_WT_Saline_Estimate_42 <- age_factor_42 + allres$`age_factor42:sex_flag.Estimate`
+Male_WT_Saline_Estimate_63 <- age_factor_63 + allres$`age_factor63:sex_flag.Estimate`
+
+## PERCENT CHANGE FOR EACH TERM ##
+
+## FEMALE ##
+f_estimates_14 <- (allres$`F_genotype_flag_14.Estimate` / age_factor_14) * 100
+f_estimates_28 <- (allres$`F_genotype_flag_28.Estimate` / age_factor_28) * 100
+f_estimates_42 <- (allres$`F_genotype_flag_42.Estimate` / age_factor_42) * 100
+f_estimates_63 <- (allres$`F_genotype_flag_63.Estimate` / age_factor_63) * 100
+
+## MALE ##
+m_estimates_14 <- (allres$`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimate_14) * 100
+m_estimates_28 <- (allres$`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
+m_estimates_42 <- (allres$`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42) * 100
+m_estimates_63 <- (allres$`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63) * 100
+
+library(ggplot2)
+library(gridExtra)
+
+# Combine female and male data with Genotype labels and Sex column
+f_data <- data.frame(
+  Estimate = c(f_estimates_14, f_estimates_28, f_estimates_42, f_estimates_63),
+  Genotype = factor(rep(c("P14 KO", "P28 KO", "P42 KO", "P63 KO"), each = length(f_estimates_14))),
+  Sex = "Female"
+)
+
+m_data <- data.frame(
+  Estimate = c(m_estimates_14, m_estimates_28, m_estimates_42, m_estimates_63),
+  Genotype = factor(rep(c("P14 KO", "P28 KO", "P42 KO", "P63 KO"), each = length(m_estimates_14))),
+  Sex = "Male"
+)
+
+combined_data <- rbind(f_data, m_data)
+
+# Set x-axis limits for consistent alignment of zero
+x_min <- min(combined_data$Estimate) - 1
+x_max <- max(combined_data$Estimate) + 1
+
+# Define colors for each genotype
+genotype_colors <- c("P14 KO" = "#B2DF8A", "P28 KO" = "#A6CEE3", "P42 KO" = "#33A02C", "P63 KO" = "#1F78B4")
+
+ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
+  geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  scale_fill_manual(values = genotype_colors) +
+  labs(
+    x = "% Volume Change (Relative to Age- and Sex-Matched Controls)",
+    y = "Number of Brain Structures"
+  ) +
+  xlim(x_min, x_max) +
+  theme_classic() +
+  theme(
+    plot.title = element_blank(),
+    axis.title.x = element_text(size = 12, family = "Arial"),
+    axis.title.y = element_text(size = 12, family = "Arial"),
+    axis.text = element_text(size = 10, family = "Arial"),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12, face = "bold", family = "Arial"),
+    legend.position = "none",
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.spacing = unit(1, "lines")
+  ) +
+  facet_grid(Sex ~ Genotype, scales = "free_y")
+
+
+load("/projects/tayoub/PERMUTATION_RESULTS_1000.RData")
+
+library(dplyr)
+library(ggplot2)
+
+
+# Normalize estimates for each age and sex
+perm_results_df <- perm_results_df %>%
+  mutate(
+    # FEMALE: Normalize interaction by female baseline at each age
+    f_estimates_14_p = (`F_genotype_flag_14.Estimate` / `age_factor14.Estimate`) * 100,
+    f_estimates_28_p = (`F_genotype_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
+    f_estimates_42_p = (`F_genotype_flag_42.Estimate` / `age_factor42.Estimate`) * 100,
+    f_estimates_63_p = (`F_genotype_flag_63.Estimate` / `age_factor63.Estimate`) * 100,
+    
+    # MALE: Compute new baseline first, then normalize
+    Male_WT_Saline_Estimate_14_p = `age_factor14:sex_flag.Estimate` + `age_factor14.Estimate`,
+    Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
+    Male_WT_Saline_Estimate_42_p = `age_factor42:sex_flag.Estimate` + `age_factor42.Estimate`,
+    Male_WT_Saline_Estimate_63_p = `age_factor63:sex_flag.Estimate` + `age_factor63.Estimate`,
+    
+    m_estimates_14_p = (`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimate_14_p) * 100,
+    m_estimates_28_p = (`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28_p) * 100,
+    m_estimates_42_p = (`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42_p) * 100,
+    m_estimates_63_p = (`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63_p) * 100
+  )
+
+# Compute median for each permutation
+perm_medians <- perm_results_df %>%
+  group_by(Permutation) %>%
+  summarise(
+    Median_M_Gen_14_p = median(m_estimates_14_p, na.rm = TRUE),
+    Median_M_Gen_28_p = median(m_estimates_28_p, na.rm = TRUE),
+    Median_M_Gen_42_p = median(m_estimates_42_p, na.rm = TRUE),
+    Median_M_Gen_63_p = median(m_estimates_63_p, na.rm = TRUE),
+    
+    Median_F_Gen_14_p = median(f_estimates_14_p, na.rm = TRUE),
+    Median_F_Gen_28_p = median(f_estimates_28_p, na.rm = TRUE),
+    Median_F_Gen_42_p = median(f_estimates_42_p, na.rm = TRUE),
+    Median_F_Gen_63_p = median(f_estimates_63_p, na.rm = TRUE)
+  )
+
+# Print the median results
+print(perm_medians)
+
+
+load("/projects/tayoub/ALLRES.RData")
+
+# baseline estimates for females 
+age_factor_14 <- allres$`age_factor14.Estimate`
+age_factor_28 <- allres$`age_factor28.Estimate`
+age_factor_42 <- allres$`age_factor42.Estimate`
+age_factor_63 <- allres$`age_factor63.Estimate`
+
+# Male baselines (WT+Saline) for each age
+Male_WT_Saline_Estimate_14 <- age_factor_14 + allres$`age_factor14:sex_flag.Estimate`
+Male_WT_Saline_Estimate_28 <- age_factor_28 + allres$`age_factor28:sex_flag.Estimate`
+Male_WT_Saline_Estimate_42 <- age_factor_42 + allres$`age_factor42:sex_flag.Estimate`
+Male_WT_Saline_Estimate_63 <- age_factor_63 + allres$`age_factor63:sex_flag.Estimate`
+
+# Normalize estimates for each term
+
+#female first
+f_estimates_14 <- (allres$`F_genotype_flag_14.Estimate` / age_factor_14) * 100
+f_estimates_28 <- (allres$`F_genotype_flag_28.Estimate` / age_factor_28) * 100
+f_estimates_42 <- (allres$`F_genotype_flag_42.Estimate` / age_factor_42) * 100
+f_estimates_63 <- (allres$`F_genotype_flag_63.Estimate` / age_factor_63) * 100
+
+#now male
+m_estimates_14 <- (allres$`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimate_14) * 100
+m_estimates_28 <- (allres$`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
+m_estimates_42 <- (allres$`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42) * 100
+m_estimates_63 <- (allres$`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63) * 100
+
+
+observed_F_med_14 <- median(f_estimates_14)
+observed_F_med_28 <- median(f_estimates_28)
+observed_F_med_42 <- median(f_estimates_42)
+observed_F_med_63 <- median(f_estimates_63)
+
+observed_M_med_14 <- median(m_estimates_14)
+observed_M_med_28 <- median(m_estimates_28)
+observed_M_med_42 <- median(m_estimates_42)
+observed_M_med_63 <- median(m_estimates_63)
+
+
+#### TESTING ####
+
+#two-tailed empirical p-value
+
+## FEMALES ##
+
+# P14 #
+N <- length(perm_medians$Median_F_Gen_14_p)
+j <- sum(observed_F_med_14 > perm_medians$Median_F_Gen_14_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.772 
+
+# P28 #
+N <- length(perm_medians$Median_F_Gen_28_p)
+j <- sum(observed_F_med_28 > perm_medians$Median_F_Gen_28_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.264
+
+# P42 #
+N <- length(perm_medians$Median_F_Gen_42_p)
+j <- sum(observed_F_med_42 > perm_medians$Median_F_Gen_42_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.106
+
+# P63 #
+N <- length(perm_medians$Median_F_Gen_63_p)
+j <- sum(observed_F_med_63 > perm_medians$Median_F_Gen_63_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.066
+
+## MALES ##
+
+# P14 #
+N <- length(perm_medians$Median_M_Gen_14_p)
+j <- sum(observed_M_med_14 > perm_medians$Median_M_Gen_14_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.01 
+
+# P28 #
+N <- length(perm_medians$Median_M_Gen_28_p)
+j <- sum(observed_M_med_28 > perm_medians$Median_M_Gen_28_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.116
+
+# P42 #
+N <- length(perm_medians$Median_M_Gen_42_p)
+j <- sum(observed_M_med_42 > perm_medians$Median_M_Gen_42_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.182
+
+# P63 #
+N <- length(perm_medians$Median_M_Gen_63_p)
+j <- sum(observed_M_med_63 > perm_medians$Median_M_Gen_63_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.4
+
+
+#########################################################
+## NOW LOOKING AT ALL 4 GROUPS AT P28 ##
+
+## LOAD IN ALLRES DATA FRAME##
+load("/projects/tayoub/ALLRES_2.RData")
+
+allres_p <- p.adjust(c(allres$`F_MTX_WT_flag_28.Pr(>|t|)`, allres$`M_MTX_WT_flag_28.Pr(>|t|)`, 
+                       allres$`M_MTX_KO_flag_28.Pr(>|t|)`, allres$`F_MTX_KO_flag_28.Pr(>|t|)`), "fdr")
+
+## REPLACE ORIGINAL P VALUE WITH ADJUSTED P VALUE ##
+allres$`F_MTX_WT_flag_28.Pr(>|t|)` <- allres_p[1:nrow(allres)]
+allres$`M_MTX_WT_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres)+1):(2*nrow(allres))]
+allres$`M_MTX_KO_flag_28.Pr(>|t|)` <- allres_p[(2*nrow(allres)+1):(3*nrow(allres))]
+allres$`F_MTX_KO_flag_28.Pr(>|t|)` <- allres_p[(3*nrow(allres)+1):(4*nrow(allres))]
+
+
+allres$`F_MTX_WT_flag_28.Estimate`<- allres$`F_MTX_WT_flag_28.Estimate` * (allres$`F_MTX_WT_flag_28.Pr(>|t|)` < 0.1)
+allres$`M_MTX_WT_flag_28.Estimate`<- allres$`M_MTX_WT_flag_28.Estimate` * (allres$`M_MTX_WT_flag_28.Pr(>|t|)` < 0.1)
+allres$`M_MTX_KO_flag_28.Estimate`<- allres$`M_MTX_KO_flag_28.Estimate` * (allres$`M_MTX_KO_flag_28.Pr(>|t|)` < 0.1)
+allres$`F_MTX_KO_flag_28.Estimate`<- allres$`F_MTX_KO_flag_28.Estimate` * (allres$`F_MTX_KO_flag_28.Pr(>|t|)` < 0.1)
+
+#### NOW PERCENT CHANGE ####
+
+#For WT Female (using age_fatcor28 b/c females are basline)
+F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
+
+#For WT Male 
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+
+#For KO Female
+F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
+F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
+
+#For KO Male
+M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
+M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
+
+# CHECKING HOW MANY STRUCTURES OUT OF 183 PASS FDR THRESHOLD #
+sum(F_WT_MTX_28_pc != 0) #56
+sum(M_WT_MTX_28_pc != 0) #79
+sum(F_KO_MTX_28_pc != 0) #75
+sum(M_KO_MTX_28_pc != 0) #44
+
+################# 
+# CLEAR ENVIRONMENT AND RE-LOAD DATA FRAME #  
+## LOAD IN ALLRES DATA FRAME##
+load("/projects/tayoub/ALLRES_2.RData")
+
+## MAKING HISTOGRAMS FOR TREATMENT EFFECT SEPARATED BY GENOTYE AND SEX ##
+#For WT Female (using age_fatcor28 b/c females are basline)
+F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
+
+#For WT Male 
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+
+#For KO Female
+F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
+F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
+
+#For KO Male
+M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
+M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
+
+# Create combined_data with Sex and Genotype
+combined_data <- data.frame(
+  Estimate = c(F_WT_MTX_28_pc, M_WT_MTX_28_pc, F_KO_MTX_28_pc, M_KO_MTX_28_pc),
+  Sex = rep(c("Female", "Male", "Female", "Male"), each = nrow(allres)),
+  Genotype = rep(c("WT", "WT", "KO", "KO"), each = nrow(allres))
+)
+
+# Set custom fill colors for Sex
+sex_colors <- c("Female" = "#66CC99", "Male" = "#FF9966")
+
+# Set axis limits for consistent x-axis
+x_min <- min(combined_data$Estimate, na.rm = TRUE)
+x_max <- max(combined_data$Estimate, na.rm = TRUE)
+
+# Ensure correct ordering of factor levels
+combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
+combined_data$Genotype <- factor(combined_data$Genotype, levels = c("WT", "KO"))
+
+# Plot
+library(ggplot2)
+
+ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
+  geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  scale_fill_manual(values = sex_colors) +
+  labs(
+    x = "% Volume Change (Relative to P28 Sex- and Genotype-Matched Saline Controls)",
+    y = "Number of Brain Structures"
+  ) +
+  xlim(x_min, x_max) +
+  theme_classic() +
+  theme(
+    axis.title.x = element_text(size = 14, family = "Arial"),
+    axis.title.y = element_text(size = 14, family = "Arial"),
+    axis.text = element_text(size = 14, family = "Arial"),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 16, face = "bold", family = "Arial"),
+    legend.position = "none",
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.spacing = unit(1, "lines")
+  ) +
+  facet_grid(Genotype ~ Sex, scales = "free_y")
+
+###############################################################
+# PERMUTATION TESTING FOR TREATMENT # 
+
+## LOAD IN TREATMENT PERMUTATION DATA FRAME ##
+load("/projects/tayoub/PERMUTATION_RESULTS_TREATMENT_1000.RData")
+
+perm_results_df <- perm_results_df %>%
+  mutate(
+    # WT FEMALE (Using age_factor28 because females are baseline)
+    F_WT_MTX_28_p = (`F_MTX_WT_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
+    
+    # WT MALE: Compute new baseline first, then normalize
+    Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
+    M_WT_MTX_28_p = (`M_MTX_WT_flag_28.Estimate` / Male_WT_Saline_Estimate_28_p) * 100,
+    
+    # KO FEMALE: Compute new baseline first, then normalize
+    F_KO_Saline_28_Estimate_p = `F_Saline_KO_flag_28.Estimate` + `age_factor28.Estimate`,
+    F_KO_MTX_28_p = (`F_MTX_KO_flag_28.Estimate` / F_KO_Saline_28_Estimate_p) * 100,
+    
+    # KO MALE: Compute new baseline first, then normalize
+    M_KO_Saline_28_Estimate_p = `M_Saline_KO_flag_28.Estimate` + Male_WT_Saline_Estimate_28_p,
+    M_KO_MTX_28_p = (`M_MTX_KO_flag_28.Estimate` / M_KO_Saline_28_Estimate_p) * 100
+  )
+
+# Compute median for each permutation
+perm_medians <- perm_results_df %>%
+  group_by(Permutation) %>%  
+  summarise(
+    Median_F_WT_MTX = median(F_WT_MTX_28_p),
+    Median_F_KO_MTX = median(F_KO_MTX_28_p),
+    Median_M_WT_MTX = median(M_WT_MTX_28_p),
+    Median_M_KO_MTX = median(M_KO_MTX_28_p)
+  )
+
+# Display result
+print(perm_medians)
+
+load("/projects/tayoub/ALLRES_2.RData")
+
+#For WT Female (using age_fatcor28 b/c females are basline)
+F_WT_MTX_28 <- (allres$F_MTX_WT_flag_28.Estimate / allres$age_factor28.Estimate) * 100
+
+#For WT Male 
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_WT_MTX_28 <- (allres$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28) * 100
+
+
+#For KO Female
+F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
+F_KO_MTX_28 <- (allres$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate) * 100
+
+#For KO Male
+M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
+M_KO_MTX_28 <- (allres$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate) * 100
+
+observed_F_WT_MTX_median <- median(F_WT_MTX_28)
+observed_F_KO_MTX_median <- median(F_KO_MTX_28)
+observed_M_WT_MTX_median <- median(M_WT_MTX_28)
+observed_M_KO_MTX_median <- median(M_KO_MTX_28)
+
+print(observed_F_WT_MTX_median)
+print(observed_F_KO_MTX_median)
+print(observed_M_WT_MTX_median)
+print(observed_M_KO_MTX_median)
+
+
+##### TESTING #####
+
+N <- length(perm_medians$Median_F_WT_MTX)
+j <- sum(observed_F_WT_MTX_median > perm_medians$Median_F_WT_MTX)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.078 
+
+N <- length(perm_medians$Median_F_KO_MTX)
+j <- sum(observed_F_KO_MTX_median > perm_medians$Median_F_KO_MTX)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0 
+
+N <- length(perm_medians$Median_M_WT_MTX)
+j <- sum(observed_M_WT_MTX_median > perm_medians$Median_M_WT_MTX)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.006
+
+N <- length(perm_medians$Median_M_KO_MTX)
+j <- sum(observed_M_KO_MTX_median > perm_medians$Median_M_KO_MTX)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0
+
+
+######## TEST ###########
+
+# Compare F KO vs F WT  
+wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28, F_KO_MTX_28, 
+                                            alternative = "two.sided")
+print(wilcox_female_MTX_comparison)
+# Significant #
+# p-value = 0.0009795 #
+# THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
+
+# Compare M KO vs M WT
+wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28, M_KO_MTX_28, 
+                                          alternative = "two.sided")
+print(wilcox_male_MTX_comparison)
+# Significant #
+# p-value = 6.635e-05 #
+# THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
+
+
+## INTERACTION EFFECT HISTOGRAMS ##
+
+## LOAD DATA ##
+load("/projects/tayoub/ALLRES.RData")
+
+# NORMALIZE ESTIMATES #
+
+# FEMALE IS BASELINE (age_factor28)
+F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
+
+# MALE IS NOT BASELINE SO YOU NEED TO ADD SEX (age_factor28:sex_flag)
+Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
+M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
+
+
+# CREATE DATA FRAMES FOR EACH INTERACTION ESTIMATE (ADDING COLUMNS FOR SEX AND INTERACTION)
+m_data_INT <- data.frame(Estimate = M_INT_28_pc, Sex = "Male", Interaction = "M_treatment_flag_28:M_genotype_flag_28")
+f_data_INT <- data.frame(Estimate = F_INT_28_pc, Sex = "Female", Interaction = "F_treatment_flag_28:F_genotype_flag_28")
+
+# COMBINE DATA FRAMES INTO ONE AND SET LEVELS #
+combined_data <- bind_rows(m_data_INT, f_data_INT) %>%
+  mutate(Interaction = factor(Interaction, levels = c(
+    "F_treatment_flag_28:F_genotype_flag_28", "M_treatment_flag_28:M_genotype_flag_28"
+  ),
+  labels = c("KO-MTX Interaction (Female)", "KO-MTX Interaction (Male)")))
+
+# COLOURS #
+sex_colors <- c("Male" = "#9370DB", "Female" = "#D68CA6")
+
+# DEFINE X-AXIS LIMITS #
+x_min <- min(combined_data$Estimate, na.rm = TRUE)
+x_max <- max(combined_data$Estimate, na.rm = TRUE)
+
+## MAKE FEMALE APPEAR FIRST FOR PLOTTING ##
+combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
+
+ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
+  geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  scale_fill_manual(values = sex_colors) +
+  labs(
+    x = "% Volume Change (Relative to Interaction of Genotype and Treatment Differences)",
+    y = "Number of Brain Structures"
+  ) +
+  xlim(x_min, x_max) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, family = "Arial"),
+    axis.title.x = element_text(size = 14, family = "Arial"),
+    axis.title.y = element_text(size = 14, family = "Arial"),
+    axis.text = element_text(size = 14, family = "Arial"),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 14, face = "bold", family = "Arial"),
+    legend.position = "none",
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.spacing = unit(1, "lines")
+  ) +
+  facet_wrap(~ Interaction, ncol = 2)
+
+
+## PERMUTATION TESTING FOR INTERACTION HISTOGRAMS ##
+load("/projects/tayoub/PERMUTATION_RESULTS_INT_1000.RData")
+
+# Compute values
+perm_results_df_2 <- perm_results_df_2 %>%
+  mutate(
+    # FEMALE: Normalize interaction by female baseline
+    F_INT_28_pc_p = (`F_treatment_flag_28:F_genotype_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
+    
+    # MALE: Compute new baseline first, then normalize
+    Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
+    M_INT_28_pc_p = (`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28_p) * 100
+  )
+
+# Compute median for each permutation
+perm_medians <- perm_results_df_2 %>%
+  group_by(Permutation) %>%  
+  summarise(
+    Median_M_INT_28_pc_p = median(M_INT_28_pc_p, na.rm = TRUE),
+    Median_F_INT_28_pc_p = median(F_INT_28_pc_p, na.rm = TRUE)
+  )
+
+# Display result
+print(perm_medians)
+
+### NOW FOR ORIGINAL DATA ###
+
+load("/projects/tayoub/ALLRES.RData")
+
+# FEMALE IS BASELINE (age_factor28)
+F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
+
+# MALE IS NOT BASELINE SO YOU NEED TO ADD SEX (age_factor28:sex_flag)
+Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
+M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
+
+
+observed_F_median <- median(F_INT_28_pc)
+observed_M_median <- median(M_INT_28_pc)
+
+#### TESTING ####
+
+#two-tailed empirical p-value
+
+#This stores the total number of permuted medians in N
+N <- length(perm_medians$Median_F_INT_28_pc_p)
+#This counts how many permuted medians are less than the observed median
+#j represents how extreme the observed median is compared to the permuted values
+j <- sum(observed_F_median> perm_medians$Median_F_INT_28_pc_p)
+#This calculates the two-tailed empirical p-value based on the count j
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.454
+
+
+N <- length(perm_medians$Median_M_INT_28_pc_p)
+j <- sum(observed_M_median> perm_medians$Median_M_INT_28_pc_p)
+mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
+mypval
+#0.512
+
+
+## COMPARING THE TWO HISTOGRAMS ##
+
+wilcox_interaction_comparison <- wilcox.test(F_INT_28_pc, M_INT_28_pc, 
+                                             alternative = "two.sided")
+print(wilcox_interaction_comparison)
+# Significant #
+# p-value = 1.585e-15 #
