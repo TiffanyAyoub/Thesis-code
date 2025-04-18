@@ -1,0 +1,184 @@
+Structure,right label,left label,hierarchy,tissue type,ABI
+amygdala,51,151,,GM,Cortical subplate
+anterior commissure: pars anterior,115,215,,WM,"anterior commissure, olfactory limb"
+anterior commissure: pars posterior,23,103,,WM,"anterior commissure, temporal limb"
+basal forebrain,52,152,,GM,"Pallidum, ventral region"
+bed nucleus of stria terminalis,176,76,,GM,Bed nuclei of the stria terminalis
+cerebellar peduncle: inferior,123,223,,WM,inferior cerebellar peduncle
+cerebellar peduncle: middle,45,245,,WM,middle cerebellar peduncle
+cerebellar peduncle: superior,242,222,,WM,superior cerebelar peduncles
+cerebral aqueduct,119,119,,CSF,cerebral aqueduct
+cerebral peduncle,114,14,,WM,cerebal peduncle
+colliculus: inferior,143,43,,GM,Inferior colliculus
+colliculus: superior,9,109,,GM,"Superior colliculus, sensory related"
+corpus callosum,8,68,,WM,corpus callosum
+corticospinal tract/pyramids,218,18,,WM,corticospinal tract
+cuneate nucleus,166,168,,GM,Cuneate nucleus
+facial nerve (cranial nerve 7),19,219,,GM,facial nerve
+fasciculus retroflexus,25,125,,WM,fasciculus retroflexus
+fimbria,211,11,,WM,fimbria
+fornix,122,22,,WM,dorsal fornix
+fourth ventricle,118,118,,CSF,fourth ventricle
+fundus of striatum,54,154,,GM,Fundus of striatum
+globus pallidus,44,144,,GM,"Pallidum, dorsal region"
+habenular commissure,99,199,,WM,habenular commissure
+hypothalamus,250,150,,GM,Hypothalamus
+inferior olivary complex,113,213,,GM,Inferior olivary complex
+internal capsule,112,12,,WM,internal capsule
+interpedunclar nucleus,157,157,,GM,Interpeduncular nucleus
+lateral olfactory tract,101,102,,WM,"lateral olfactory tract, general"
+lateral septum,207,107,,,Lateral septal complex
+lateral ventricle,57,77,,CSF,lateral ventricle
+mammillary bodies,161,61,,GM,Mammillary body
+mammilothalamic tract,210,212,,WM,mammilothalmic tract
+medial lemniscus/medial longitudinal fasciculus,20,120,,WM,medial lemniscus
+medial septum,53,153,,,Medial septal complex
+medulla,174,174,,,Medulla
+midbrain,194,194,,,Midbrain
+nucleus accumbens,55,155,,GM,Nucleus accumbens
+olfactory peduncle,5,105,Olfactory bulbs,GM,Olfactory areas
+olfactory tubercle,95,145,,GM,Olfactory tubercle
+optic tract,216,116,,WM,optic tract
+periaqueductal grey,10,10,,GM,Periaqueductal gray
+pons,187,187,,GM,Pons
+pontine nucleus,85,185,,GM,Pontine reticular nucleus
+posterior commissure,100,100,,WM,posterior commissure
+pre-para subiculum,133,131,,GM,Subiculum
+stria medullaris,225,205,,GM,stria medullaris
+stria terminalis,59,159,,GM,stria terminalis
+striatum,7,17,,GM,Caudoputamen
+subependymale zone / rhinocele,240,140,,GM,subependymal zone
+superior olivary complex,124,214,,GM,Superior olivary complex
+thalamus,204,4,,GM,Thalamus
+third ventricle,146,146,,CSF,third ventricle
+ventral tegmental decussation,156,156,,WM,ventral tegmental decussation
+lobules 1-2: lingula and central lobule (ventral),32,32,cerebellar vermis,GM,Lingula (I)
+lobule 3: central lobule (dorsal),233,233,cerebellar vermis,GM,Central lobule
+lobules 4-5: culmen (ventral and dorsal),34,34,cerebellar vermis,GM,Culmen
+lobule 6: declive,36,36,cerebellar vermis,GM,Declive (VI)
+lobule 7: tuber (or folium),237,237,cerebellar vermis,GM,Folium-tuber vermis (VII)
+lobule 8: pyramis,38,38,cerebellar vermis,GM,Pyramus (VIII)
+lobule 9: uvula,239,239,cerebellar vermis,GM,Uvula (IX)
+lobule 10: nodulus,40,40,cerebellar vermis,GM,Nodulus (X)
+anterior lobule  (lobules 4-5),90,148,cerebellar paravermis,GM,Lobules IV-V
+simple lobule (lobule 6),191,91,cerebellar hemisphere,GM,Simple lobule
+crus 1: ansiform lobule (lobule 6),92,192,cerebellar hemisphere,GM,Crus 1
+crus 2: ansiform lobule (lobule 7),193,93,cerebellar hemisphere,GM,Crus 2
+paramedian lobule (lobule 7),94,200,cerebellar hemisphere,GM,Paramedian lobule
+copula: pyramis (lobule 8),196,96,cerebellar hemisphere,GM,Copula pyramidis
+flocculus (FL),97,197,cerebellar flocculonodular lobe,GM,Flocculus
+paraflocculus (PFL),198,98,cerebellar flocculonodular lobe,GM,Paraflocculus
+trunk of arbor vita,47,47,cerebellar white matter,WM,arbor vitae
+lobule 1-2 white matter,232,232,cerebellar vermis white matter,WM,arbor vitae
+lobule 3 white matter,33,33,cerebellar vermis white matter,WM,arbor vitae
+trunk of lobules 1-3 white matter,253,253,cerebellar vermis white matter,WM,arbor vitae
+lobules 4-5 white matter,234,234,cerebellar vermis white matter,WM,arbor vitae
+lobules 6-7 white matter,236,236,cerebellar vermis white matter,WM,arbor vitae
+lobule 8 white matter,238,238,cerebellar vermis white matter,WM,arbor vitae
+trunk of lobules 6-8 white matter,254,254,cerebellar vermis white matter,WM,arbor vitae
+lobule 9 white matter,139,139,cerebellar vermis white matter,WM,arbor vitae
+lobule 10 white matter,252,252,cerebellar vermis white matter,WM,arbor vitae
+anterior lobule white matter,21,31,cerebellar paravermis white matter,,arbor vitae
+simple lobule white matter,241,251,cerebellar white matter,WM,arbor vitae
+crus 1 white matter,220,170,cerebellar white matter,WM,arbor vitae
+trunk of simple and crus 1 white matter,226,246,cerebellar white matter,WM,arbor vitae
+crus 2 white matter,229,249,cerebellar white matter,WM,arbor vitae
+paramedian lobule,228,248,cerebellar white matter,WM,arbor vitae
+trunk of crus 2 and paramedian white matter,175,195,cerebellar white matter,WM,arbor vitae
+copula white matter,224,244,cerebellar white matter,WM,arbor vitae
+paraflocculus white matter,183,243,cerebellar flocculonodular lobe white matter,WM,arbor vitae
+flocculus white matter,167,177,cerebellar flocculonodular lobe white matter,WM,arbor vitae
+dentate nucleus,1,201,deep cerebellar nuclei,GM,Dentate nucleus
+nucleus interpositus,203,3,deep cerebellar nuclei,GM,Interposed nucleus
+fastigial nucleus,15,206,deep cerebellar nuclei,GM,Fastigial nucleus
+Cingulate cortex: area 24a,24,169,Cingulate region,GM,"Anterior cingulate area, ventral part"
+Cingulate cortex: area 24a',26,171,Cingulate region,GM,"Anterior cingulate area, ventral part"
+Cingulate cortex: area 24b,27,172,Cingulate region,GM,"Anterior cingulate area, dorsal part"
+Cingulate cortex: area 24b',28,173,Cingulate region,GM,"Anterior cingulate area, dorsal part"
+Cingulate cortex: area 25,29,178,Cingulate region,GM,Infralimbic area
+Cingulate cortex: area 29a,30,179,Cingulate region,GM,"Retrosplenial area, ventral part"
+Cingulate cortex: area 29b,35,182,Cingulate region,GM,"Retrosplenial area, ventral part"
+Cingulate cortex: area 29c,37,184,Cingulate region,GM,"Retrosplenial area, ventral part"
+Cingulate cortex: area 30,39,186,Cingulate region,GM,"Retrosplenial area, dorsal part"
+Cingulate cortex: area 32,41,188,Cingulate region,GM,Prelimbic area
+Amygdalopiriform transition area,42,189,Piriform cortex area,GM,Postpiriform transition area
+Primary auditory cortex,46,208,Temporal region,GM,Primary auditory area
+Secondary auditory cortex: dorsal area,48,217,Temporal region,GM,Dorsal auditory area
+Secondary auditory cortex: ventral area,49,221,Temporal region,GM,Ventral auditory area
+Caudomedial entorhinal cortex,50,227,Entorhinal cortex,GM,"Entorhinal area, medial part, dorsal zone"
+Cingulum ,56,231,Fiber Groups,WM,cingulum bundle
+Claustrum,58,235,Insular claustrum,GM,Claustrum
+Cortex-amygdala transition zones,60,255,Piriform cortex area,GM,Piriform area
+Claustrum: dorsal part,62,256,Insular claustrum,GM,Claustrum
+Dorsal nucleus of the endopiriform,65,257,Endopiriform claustrum,GM,"Endopiriform nucleus, dorsal part"
+Dorsal intermediate entorhinal cortex,67,258,Entorhinal cortex,GM,"Entorhinal area, lateral part"
+Dorsolateral entorhinal cortex,69,259,Entorhinal cortex,GM,"Entorhinal area, lateral part"
+Dorsolateral orbital cortex,70,260,Frontal region,GM,"Agranular insular area, dorsal part"
+Dorsal tenia tecta,71,261,Entorhinal cortex,GM,"Taenia tecta, dorsal part"
+Ectorhinal cortex,72,262,Insular region,GM,Ectorhinal area
+Frontal cortex: area 3,73,263,Frontal region,GM,Primary motor area
+Frontal association cortex,74,264,Frontal region,GM,"Frontal pole, cerebral cortex"
+Intermediate nucleus of the endopiriform claustrum,75,265,Endopiriform claustrum,GM,"Endopiriform nucleus, dorsal part"
+Insular region: not subdivided,78,266,Insular region,GM,Ectorhinal area
+Lateral orbital cortex,79,267,Frontal region,GM,"Orbital area, lateral part"
+Lateral parietal association cortex,80,268,Parietal region,GM,Posterior parietal association areas
+Primary motor cortex,81,269,Frontal region,GM,Primary motor area
+Secondary motor cortex,82,270,Frontal region,GM,Secondary motor area
+Medial entorhinal cortex,83,271,Entorhinal cortex,GM,"Entorhinal area, medial part, ventral zone"
+Medial orbital cortex,84,272,Frontal region,GM,"Orbital area, medial part"
+Medial parietal association cortex,86,273,Parietal region,GM,Posterior parietal association areas
+Piriform cortex,87,274,Piriform cortex area,GM,Piriform area
+Posterolateral cortical amygdaloid area ,88,275,Piriform cortex area,GM,"Cortical amygdalar area, posterior part, lateral zone"
+Posteromedial cortical amygdaloid area ,89,276,Piriform cortex area,GM,"Cortical amygdalar area, posterior part, medial zone"
+Perirhinal cortex,104,277,Insular region,GM,Perirhinal area
+Parietal cortex: posterior area: rostral part,108,278,Parietal region,GM,Posterior parietal association areas
+Rostral amygdalopiriform area,110,279,Piriform cortex area,GM,Piriform-amygdalar area
+Primary somatosensory cortex,111,280,Parietal region,GM,Primary somatosensory area
+Primary somatosensory cortex: barrel field,117,281,Parietal region,GM,"Primary somatosensory area, barrel field"
+Primary somatosensory cortex: dysgranular zone,121,282,Parietal region,GM,"Primary somatosensory area, trunk"
+Primary somatosensory cortex: forelimb region,126,283,Parietal region,GM,"Primary somatosensory area, upper limb"
+Primary somatosensory cortex: hindlimb region,127,284,Parietal region,GM,"Primary somatosensory area, lower limb"
+Primary somatosensory cortex: jaw region,128,285,Parietal region,GM,"Primary somatosensory area, mouth"
+Primary somatosensory cortex: shoulder region,129,286,Parietal region,GM,"Primary somatosensory area, trunk"
+Primary somatosensory cortex: trunk region,132,287,Parietal region,GM,"Primary somatosensory area, trunk"
+Primary somatosensory cortex: upper lip region,134,288,Parietal region,GM,"Primary somatosensory area, nose"
+Secondary somatosensory cortex,135,289,Parietal region,GM,Supplemental somatosensory area
+Temporal association area,136,290,Temporal region,GM,Temporal association areas
+Primary visual cortex,137,291,Occipital region,GM,Primary visual area
+Primary visual cortex: binocular area,138,292,Occipital region,GM,Lateral visual area
+Primary visual cortex: monocular area,141,293,Occipital region,GM,posteromedial visual area
+Secondary visual cortex: lateral area,142,294,Occipital region,GM,Anterolateral visual area
+Secondary visual cortex: mediolateral area,147,295,Occipital region,GM,Anteromedial visual area
+Secondary visual cortex: mediomedial area,149,296,Occipital region,GM,Posterior parietal association areas
+Claustrum: ventral part,158,297,Insular claustrum,GM,Claustrum
+Ventral nucleus of the endopiriform claustrum,160,298,Endopiriform claustrum,GM,"Endopiriform nucleus, ventral part"
+Ventral intermediate entorhinal cortex,162,299,Entorhinal cortex,GM,"Entorhinal area, lateral part"
+Ventral orbital cortex,163,300,Frontal region,GM,"Orbital area, ventrolateral part"
+Ventral tenia tecta,165,301,Entorhinal cortex,GM,"Taenia tecta, ventral part"
+CA10r,336,305,Hippocampal region,GM,"Field CA1, stratum oriens"
+LMol,306,307,Hippocampal region,GM,"Field CA1, stratum lacunosum-moleculare"
+CA1Rad,308,309,Hippocampal region,GM,"Field CA1, stratum radiatum"
+CA2Py,310,311,Hippocampal region,GM,"Field CA2, pyramidal layer"
+CA20r,312,313,Hippocampal region,GM,"Field CA2, stratum oriens"
+CA2Rad,314,315,Hippocampal region,GM,"Field CA2, stratum radiatum"
+CA3Py Inner,316,317,Hippocampal region,GM,"Field CA3, pyramidal layer"
+CA3Py Outer,318,319,Hippocampal region,GM,"Field CA3, pyramidal layer"
+CA30r,320,321,Hippocampal region,GM,"Field CA3, stratum oriens"
+CA3Rad,322,323,Hippocampal region,GM,"Field CA3, stratum radiatum"
+SLu,324,325,Hippocampal region,GM,"Field CA3, stratum lucidum"
+MoDG,326,327,Hippocampal region,GM,"Dentate gyrus, molecular layer"
+GrDG,328,329,Hippocampal region,GM,"Dentate gyrus, granule cell layer"
+PoDG,330,331,Hippocampal region,GM,"Dentate gyrus, granule cell layer"
+CA1Py,334,335,Hippocampal region,GM,"Field CA1, pyramidal layer"
+Olfactory bulb: glomerular layer ,337,345,Olfactory bulbs,GM,"Main olfactory bulb, glomerular layer"
+Olfactory bulb: external plexiform layer ,338,346,Olfactory bulbs,GM,"Main olfactory bulb, outer plexiform layer"
+Olfactory bulb: mitral cell layer,339,347,Olfactory bulbs,GM,"Main olfactory bulb, mitral layer"
+Olfactory bulb: internal plexiform layer ,340,348,Olfactory bulbs,GM,"Main olfactory bulb, inner plexiform layer"
+Olfactory bulb: granule cell layer,341,349,Olfactory bulbs,GM,"Main olfactory bulb, granule layer"
+"Accessory olfactory bulb: glomerular, external plexiform and mitral cell layer",342,350,Olfactory bulbs,GM,"Accessory olfactory bulb, glomerular layer"
+Accessory olfactory bulb: granule cell layer,343,351,Olfactory bulbs,GM,"Accessory olfactory bulb, granular layer"
+Anterior olfactory nucleus,344,352,Olfactory bulbs,GM,Anterior olfactory nucleus
+subiculum,332,333,,GM,Subiculum
+Medial amygdala,353,355,,GM,Medial amygdalar nucleus
+Medial preoptic nucleus,354,356,,GM,Medial preoptic nucleus
+Pituitary gland,360,360,,, 
