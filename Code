@@ -1,12 +1,9 @@
 ###### THESIS R CODE ######
 
+## LOAD: "FINAL_DATA_FRAME.csv ## THIS IS THE CSV FILE WITH BRAIN VOLUMES FROM STUDY ##
+## LOAD: DSURQEE_R_mapping.csv ## THIS IS THE CSV FILE WITH LABELS FOR THE BRAIN ATLAS ##
+
 ###### PLOTTING GREY AND WHITE MATTER ######
-
-## LOAD DATA FRAME ## 
-load("/home/tayoub/FINAL_DATA_FRAME.RData")
-
-## LOAD DT.STRUC WHICH CONTAINS ALL THE ATLAS LABELS ##
-dt.struc <- read.csv('/hpf/largeprojects/MICe/jyeung/DSURQEE_60micron_invivo/DSURQEE_R_mapping.csv')
 
 ## MATCHING STRUCTURE NAMES IN ATLAS TO STRUCTURE NAMES IN DATA ##
 dt.struc$Structure <- colnames(FINAL_DATA_FRAME)[which(colnames(FINAL_DATA_FRAME) == "amygdala"):(ncol(FINAL_DATA_FRAME))]
@@ -17,7 +14,7 @@ df_tissue <- data.frame(FINAL_DATA_FRAME[,1:(which(colnames(FINAL_DATA_FRAME) ==
 ## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER WHITE MATTER TISSUE TYPE ##
 ## SUM ALL WHITE MATTER STRUCTURES ##
 WM_list <- subset(dt.struc, tissue.type == "WM")[,1] 
-WM_list <- c(WM_list, "anterior lobule white matter") # ADDING STRUCTURE MANUALLY THAT SHOULD BE WM #
+WM_list <- c(WM_list, "anterior lobule white matter") # ADDING STRUCTURE MANUALLY THAT IS WM #
 # WHITE MATTER LIST CONSISTS OF 40 STRUCTURES #
 df_tissue$WM <- rowSums(FINAL_DATA_FRAME[,as.character(WM_list)], na.rm = TRUE)
 
@@ -512,7 +509,7 @@ print(plot_thalamus)
 
 #############################################################################
 
-#### NOW DOING ONLY P28 TIMEPOINT ####
+#### NOW DOING ONLY P28 TIMEPOINT FOR WT MICE ####
 
 ###### PRIMARY VISUAL CORTEX: BINOCULAR AREA ######
 
@@ -871,7 +868,7 @@ plot_psc_hindlimb <- ggplot(summary_df_psc_hindlimb, aes(x = as.character(Age), 
 
 #################################################################################
 ## MAKING HP PLTOS (SHOWING ALL 4 GROUPS AT P28) & PARIETAL LOBE ##
-## ALREADY RAN THE LINEAR MODEL FOR HP##
+## ALREADY RAN THE LINEAR MODEL FOR HP ABOVE ##
 
 ## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
 adjusted_hp <- df_tissue$HP -
@@ -1061,8 +1058,8 @@ plot_pr
 ###################################################################
 
 
-## LOAD IN ALLRES DATA FRAME ## 
-## LOOPED EACH STRUCTURE THROUGH THE LINEAR MODEL ##
+## LOAD: ALLRES.RData ## 
+## THIS DATA FRAME HAS THE EFFECTS FOR EACH STRUCTURE THROUGH THE LINEAR MODEL ##
 load("/projects/tayoub/ALLRES.RData")
 
 ## RUN FDR ##
@@ -1114,7 +1111,11 @@ sum(M_WT_MTX_42_pc != 0) #8
 sum(F_WT_MTX_63_pc != 0) #0
 sum(M_WT_MTX_63_pc != 0) #0
 
+##################################################################################
+## LOAD: ALLRES.RData ## 
+
 ## CHECKING IF THERE IS A GENOTYPE EFFECT ##
+
 ## THIS IS FOR FIGURE 6 TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE ##
 allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
                        allres$`F_genotype_flag_28.Pr(>|t|)`, 
@@ -1137,7 +1138,7 @@ allres$`M_genotype_flag_28.Pr(>|t|)` <- allres_p[(5 * nrow(allres) + 1):(6 * nro
 allres$`M_genotype_flag_42.Pr(>|t|)` <- allres_p[(6 * nrow(allres) + 1):(7 * nrow(allres))]
 allres$`M_genotype_flag_63.Pr(>|t|)` <- allres_p[(7 * nrow(allres) + 1):(8 * nrow(allres))]
 
-## UPDATE ESTIMATS BASED ON ADJUSTED P VALUES (Q VALUES) ## 
+## UPDATE ESTIMATES BASED ON ADJUSTED P VALUES (Q VALUES) ## 
 allres$`F_genotype_flag_14.Estimate` <- allres$`F_genotype_flag_14.Estimate` * (allres$`F_genotype_flag_14.Pr(>|t|)` < 0.1)
 allres$`F_genotype_flag_28.Estimate` <- allres$`F_genotype_flag_28.Estimate` * (allres$`F_genotype_flag_28.Pr(>|t|)` < 0.1)
 allres$`F_genotype_flag_42.Estimate` <- allres$`F_genotype_flag_42.Estimate` * (allres$`F_genotype_flag_42.Pr(>|t|)` < 0.1)
@@ -1146,7 +1147,6 @@ allres$`M_genotype_flag_14.Estimate` <- allres$`M_genotype_flag_14.Estimate` * (
 allres$`M_genotype_flag_28.Estimate` <- allres$`M_genotype_flag_28.Estimate` * (allres$`M_genotype_flag_28.Pr(>|t|)` < 0.1)
 allres$`M_genotype_flag_42.Estimate` <- allres$`M_genotype_flag_42.Estimate` * (allres$`M_genotype_flag_42.Pr(>|t|)` < 0.1)
 allres$`M_genotype_flag_63.Estimate` <- allres$`M_genotype_flag_63.Estimate` * (allres$`M_genotype_flag_63.Pr(>|t|)` < 0.1)
-
 
 ## % CHANGE FOR FEMALE KO MICE # SCALING ##
 F_KO_14_pc <- allres$F_genotype_flag_14.Estimate/allres$age_factor14.Estimate*100
@@ -1168,7 +1168,7 @@ Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'
 M_KO_63_pc <- allres$M_genotype_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
 
 
-## CHECKING HOW MANY STRUCTURES PASS THE FDR THRESHOLD AT EACH TIMEPOINT ##
+## CHECKING HOW MANY STRUCTURES PASSED THE FDR THRESHOLD AT EACH TIMEPOINT ##
 sum(F_KO_14_pc != 0) #0
 sum(F_KO_28_pc != 0) #1
 sum(F_KO_42_pc != 0) #0
@@ -1179,9 +1179,13 @@ sum(M_KO_28_pc != 0) #0
 sum(M_KO_42_pc != 0) #0
 sum(M_KO_63_pc != 0) #0
 
+
+
 ## MAKING HISTOGRAMS ##
+
 ## MAKING HISTOGRAM FOR GENOTYPE EFFECT ##
-load("/projects/tayoub/ALLRES.RData")
+
+## LOAD: ALLRES.RData ## 
 
 ## BASELINE ESTIMATES FOR FEMALES ## 
 age_factor_14 <- allres$`age_factor14.Estimate`
@@ -1257,8 +1261,8 @@ ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
   ) +
   facet_grid(Sex ~ Genotype, scales = "free_y")
 
-
-load("/projects/tayoub/PERMUTATION_RESULTS_1000.RData")
+## LOAD: PERMUTATION_RESULTS_1000.RData ##
+## THIS DATA FRAME CONTAINS THE PERMUTED DATA FOR THE GENOTYPE EFFECT ##
 
 library(dplyr)
 library(ggplot2)
