@@ -1,7 +1,7 @@
 ###### THESIS R CODE ######
 
-## LOAD: "FINAL_DATA_FRAME.csv ## THIS IS THE CSV FILE WITH BRAIN VOLUMES FROM STUDY ##
-## LOAD: DSURQEE_R_mapping.csv ## THIS IS THE CSV FILE WITH LABELS FOR THE BRAIN ATLAS ##
+## LOAD: "FINAL_DATA_FRAME.RData ## THIS IS THE CSV FILE WITH BRAIN VOLUMES FROM THE STUDY ##
+## LOAD: DSURQEE_R_mapping.csv ## THIS IS THE CSV FILE WITH LABELS FOR THE BRAIN ATLAS WHICH CONTAINS 183 BRAIN STRUCTURES ##
 
 ###### PLOTTING GREY AND WHITE MATTER ######
 
@@ -1059,11 +1059,10 @@ plot_pr
 
 
 ## LOAD: ALLRES.RData ## 
-## THIS DATA FRAME HAS THE EFFECTS FOR EACH STRUCTURE THROUGH THE LINEAR MODEL ##
-load("/projects/tayoub/ALLRES.RData")
+## 
 
 ## RUN FDR ##
-## THIS IS FOR FIGURE 5 TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE ##
+## THIS IS FOR FIGURE 5 TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP##
 allres_p <- p.adjust(c(
   allres$`F_treatment_flag_28.Pr(>|t|)`, allres$`M_treatment_flag_28.Pr(>|t|)`,
   allres$`F_treatment_flag_42.Pr(>|t|)`, allres$`M_treatment_flag_42.Pr(>|t|)`,
@@ -1103,7 +1102,7 @@ M_WT_MTX_42_pc <- allres$M_treatment_flag_42.Estimate/Male_WT_Saline_Estimate_42
 Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'age_factor63.Estimate'
 M_WT_MTX_63_pc <- allres$M_treatment_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
 
-## CHECKING THE NUMBER OF STRUCTURES AFFECTED AT EACH TIMEPOINT THAT PASSED FDR THRESHOLD ##
+## CHECKING THE NUMBER OF STRUCTURES AFFECTED AT EACH TIMEPOINT THAT PASSED FDR THRESHOLD OUT OF ALL 183 STRUCTURES##
 sum(F_WT_MTX_28_pc != 0) #34
 sum(M_WT_MTX_28_pc != 0) #59
 sum(F_WT_MTX_42_pc != 0) #4
@@ -1168,7 +1167,7 @@ Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'
 M_KO_63_pc <- allres$M_genotype_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
 
 
-## CHECKING HOW MANY STRUCTURES PASSED THE FDR THRESHOLD AT EACH TIMEPOINT ##
+## CHECKING HOW MANY STRUCTURES PASSED THE FDR THRESHOLD AT EACH TIMEPOINT OUT OF 183 STRUCTURES ##
 sum(F_KO_14_pc != 0) #0
 sum(F_KO_28_pc != 0) #1
 sum(F_KO_42_pc != 0) #0
@@ -1179,7 +1178,7 @@ sum(M_KO_28_pc != 0) #0
 sum(M_KO_42_pc != 0) #0
 sum(M_KO_63_pc != 0) #0
 
-
+#####################################################################################
 
 ## MAKING HISTOGRAMS ##
 
@@ -1193,7 +1192,7 @@ age_factor_28 <- allres$`age_factor28.Estimate`
 age_factor_42 <- allres$`age_factor42.Estimate`
 age_factor_63 <- allres$`age_factor63.Estimate`
 
-## MALE BASLEINES (WT+SALINE) FOR EACH AGE ## 
+## MALE BASLEINES (WT+SALINE) FOR EACH AGE ## FEMALES ARE BASLINE SO HAD TO ADD SEX:FLAG TO GET MALE BASLINE ##
 Male_WT_Saline_Estimate_14 <- age_factor_14 + allres$`age_factor14:sex_flag.Estimate`
 Male_WT_Saline_Estimate_28 <- age_factor_28 + allres$`age_factor28:sex_flag.Estimate`
 Male_WT_Saline_Estimate_42 <- age_factor_42 + allres$`age_factor42:sex_flag.Estimate`
@@ -1260,6 +1259,8 @@ ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
     panel.spacing = unit(1, "lines")
   ) +
   facet_grid(Sex ~ Genotype, scales = "free_y")
+
+##################################################################################
 
 ## LOAD: PERMUTATION_RESULTS_1000.RData ##
 ## THIS DATA FRAME CONTAINS THE PERMUTED DATA FOR THE GENOTYPE EFFECT ##
