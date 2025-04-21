@@ -1049,9 +1049,10 @@ plot_pr
 
 ################################################################################################
 ## CHECKING FOR TREATMENT EFFECT IN WT MTX MICE ##
-## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP##
+## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP ##
 
 ## LOAD: ALLRES.RData ## 
+## RAN THE MIXED-EFFECTS MODEL FOR EACH BRAIN STRUCTURE AND STORED ALL THE MODEL OUTPUTS IN ALLRES ##
 
 ## RUN FDR ##
 allres_p <- p.adjust(c(
@@ -1447,7 +1448,8 @@ sum(M_WT_MTX_28_pc != 0) #79
 sum(F_KO_MTX_28_pc != 0) #75
 sum(M_KO_MTX_28_pc != 0) #44
 
-################# 
+#########################################################
+
 # CLEAR ENVIRONMENT AND RE-LOAD DATA FRAME #  
 ## LOAD IN ALLRES DATA FRAME##
 load("/projects/tayoub/ALLRES_2.RData")
@@ -1622,7 +1624,7 @@ print(wilcox_male_MTX_comparison)
 # p-value = 6.635e-05 #
 # THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
-
+############################################################
 ## INTERACTION EFFECT HISTOGRAMS ##
 
 ## LOAD DATA ##
@@ -1752,3 +1754,149 @@ wilcox_interaction_comparison <- wilcox.test(F_INT_28_pc, M_INT_28_pc,
 print(wilcox_interaction_comparison)
 # Significant #
 # p-value = 1.585e-15 #
+
+
+######################################
+
+## LOOKING AT WEIGHT COMPARISONS ##
+
+## LOAD FINAL_WEIGHT.CSV ##
+
+## PLOTTING THE WEIGHTS CURVE -- KEEPING SEX SEPARATE ##
+
+## CHANGE TO NUMERIC ##
+FINAL_WEIGHT$Age <- as.numeric(as.character(FINAL_WEIGHT$Age))
+FINAL_WEIGHT$Weight <- as.numeric(as.character(FINAL_WEIGHT$Weight))
+
+## CALCULATE MEAN CONFIDENCE INTERVALS ##
+weightc <- FINAL_WEIGHT %>%
+  group_by(Group, Sex, Age) %>%
+  summarise(
+    mean = mean(as.numeric(as.character(Weight)), na.rm = TRUE),
+    se = sd(as.numeric(as.character(Weight)), na.rm = TRUE) / sqrt(n()),  
+    ci_lower = mean - qt(0.975, df = n() - 1) * se,
+    ci_upper = mean + qt(0.975, df = n() - 1) * se,
+    N = n(),  # Count of observations
+    .groups = 'drop'
+  )
+
+## RE-ORDER GROUP LEVELS FOR LEGEND ##
+weightc$Group <- factor(weightc$Group, levels = c("WT+Saline", "WT+MTX", "KO+Saline", "KO+MTX"))
+
+## PLOTTING ##
+
+ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = Group), 
+              alpha = 0.1, linetype = "dotted", size = 0.5) +
+  labs(title = "Mouse Weight",
+       x = "Age (days)",
+       y = "Weight (g)",
+       color = "Group") +
+  scale_color_manual(values = c("WT+Saline" = "blue", 
+                                "WT+MTX" = "red", 
+                                "KO+Saline" = "black",  
+                                "KO+MTX" = "grey")) +
+  scale_fill_manual(values = c("WT+Saline" = "blue", 
+                               "WT+MTX" = "red", 
+                               "KO+Saline" = "black",   
+                               "KO+MTX" = "grey")) +
+  facet_wrap(~Sex) +
+  scale_x_continuous(trans = 'log10', 
+                     breaks = c(13, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 35, 41, 49, 56, 62)) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 16),
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+    axis.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    panel.spacing = unit(2, "lines")
+  )
+
+
+###### MAKING FEMALE WT SALINE MICE BASELINE ######
+# SET WT SALINE BASELINE 
+FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
+
+## CONVERT AGE TO FACTOR ##
+FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
+
+## MAKING FEMALE BASELINE ##
+FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
+
+# Fit the mixed-effects model
+Linear_mixed_model <- lmer(
+  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  data = FINAL_WEIGHT
+)
+
+# View the model summary
+summary(Linear_mixed_model)
+
+## WT MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE FEMALE MICE FROM P22 TO P27 ##
+
+###### MAKING FEMALE KO SALINE MICE BASELINE ######
+# Set baseline for Group (e.g., KO+Saline)
+FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
+
+# Convert Age to a factor (if it's not already)
+FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
+
+#Set female to 0
+FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
+
+
+# Fit the mixed-effects model
+Linear_mixed_model <- lmer(
+  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  data = FINAL_WEIGHT
+)
+
+# View the model summary
+summary(Linear_mixed_model)
+
+## KO MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE FEMALE MICE FROM P22 TO P35 ##
+
+###### MAKING MALE KO SALINE MICE BASELINE ######
+# Set baseline for Group (e.g., KO+Saline)
+FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
+
+# Convert Age to a factor (if it's not already)
+FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
+
+# Set Male as the baseline
+FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
+
+# Fit the mixed-effects model
+Linear_mixed_model <- lmer(
+  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  data = FINAL_WEIGHT
+)
+
+# View the model summary
+summary(Linear_mixed_model)
+
+## KO MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE MALE MICE FROM P22 TO P49 ##
+
+###### MAKING MALE WT SALINE MICE BASELINE ######
+# Set baseline for Group (e.g., WT+Saline)
+FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
+
+# Convert Age to a factor (if it's not already)
+FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
+
+# Set Male as the baseline
+FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
+
+# Fit the mixed-effects model
+Linear_mixed_model <- lmer(
+  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  data = FINAL_WEIGHT
+)
+
+# View the model summary
+summary(Linear_mixed_model)
+
+## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
+
