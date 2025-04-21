@@ -7,6 +7,7 @@
 library(tidyverse)
 library(lme4)
 library(lmerTest)
+library(ggplot2)
 
 ###### PLOTTING GREY AND WHITE MATTER ######
 
@@ -1104,7 +1105,7 @@ sum(M_WT_MTX_63_pc != 0) #0
 ## CHECKING FOR GENOTYPE EFFECT ##
 ## THIS IS FOR FIGURE 6A TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE TO CREATE THE BRAIN MAP ##
 
-## RE-LOAD: ALLRES.RData ##
+## LOAD: ALLRES.RData ## 
 
 ## FDR ##
 allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
@@ -1257,8 +1258,6 @@ ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
 ## THIS DATA FRAME CONTAINS THE PERMUTED DATA FOR THE GENOTYPE EFFECT ##
 
 library(dplyr)
-library(ggplot2)
-
 
 # Normalize estimates for each age and sex
 perm_results_df <- perm_results_df %>%
@@ -1299,8 +1298,7 @@ perm_medians <- perm_results_df %>%
 # Print the median results
 print(perm_medians)
 
-
-load("/projects/tayoub/ALLRES.RData")
+## LOAD: ALLRES.RData ## 
 
 # baseline estimates for females 
 age_factor_14 <- allres$`age_factor14.Estimate`
