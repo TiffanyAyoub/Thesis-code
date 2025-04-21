@@ -3,6 +3,11 @@
 ## LOAD: "FINAL_DATA_FRAME.RData ## THIS IS THE CSV FILE WITH BRAIN VOLUMES FROM THE STUDY ##
 ## LOAD: DSURQEE_R_mapping.csv ## THIS IS THE CSV FILE WITH LABELS FOR THE BRAIN ATLAS WHICH CONTAINS 183 BRAIN STRUCTURES ##
 
+## LOAD PACKAGES ##
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+
 ###### PLOTTING GREY AND WHITE MATTER ######
 
 ## MATCHING STRUCTURE NAMES IN ATLAS TO STRUCTURE NAMES IN DATA ##
@@ -258,21 +263,7 @@ plot_wm <- ggplot(summary_df_wm, aes(x = as.character(Age), y = mean_wm, group =
 
 print(plot_wm)
 
-
-library(ggplot2)
-library(patchwork)
-
-## REMOVE LEGEND FROM GM PLOT ##
-plot_gm <- plot_gm + theme(legend.position = "none")
-
-## COMBINE PLOTS ##
-combined_plot <- plot_gm + plot_wm + plot_layout(ncol = 2)
-
-##DISPLAY##
-combined_plot
-
-##############################################################################
-## HIPPOCAMPUS ##
+###### PLOTTING THE HIPPOCAMPUS ######
 
 formula_hp <- "`HP` ~ -1 + age_factor + age_factor:sex_flag + 
             age_factor:z_litter_size +
@@ -370,8 +361,7 @@ plot_hp <- ggplot(summary_df_hp, aes(x = as.character(Age), y = mean_hp, group =
 ## DISPLAY THE PLOT ##
 print(plot_hp)
 
-
-## THALAMUS ##
+###### PLOTTING THE THALAMUS ######
 
 ## LINEAR MODEL ##
 
@@ -509,7 +499,7 @@ print(plot_thalamus)
 
 #############################################################################
 
-#### NOW DOING ONLY P28 TIMEPOINT FOR WT MICE ####
+#### NOW DOING ONLY P28 TIMEPOINT FOR WT MICE FOR FIGURE 5B,C,D & E ####
 
 ###### PRIMARY VISUAL CORTEX: BINOCULAR AREA ######
 
@@ -866,8 +856,9 @@ plot_psc_hindlimb <- ggplot(summary_df_psc_hindlimb, aes(x = as.character(Age), 
     panel.border = element_rect(color = "black", fill = NA, size = 0.7)
   )
 
+print(plot_psc_hindlimb)
 #################################################################################
-## MAKING HP PLTOS (SHOWING ALL 4 GROUPS AT P28) & PARIETAL LOBE ##
+## MAKING HP PLTOS (SHOWING ALL 4 GROUPS AT P28) & PARIETAL LOBE ## THIS IS FOR FIGURE 8A ##
 ## ALREADY RAN THE LINEAR MODEL FOR HP ABOVE ##
 
 ## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
@@ -1055,14 +1046,13 @@ plot_pr <- ggplot(summary_df_pr, aes(x = Group, y = mean_pr, color = Group)) +
 plot_pr
 
 
-###################################################################
-
+################################################################################################
+## CHECKING FOR TREATMENT EFFECT IN WT MTX MICE ##
+## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP##
 
 ## LOAD: ALLRES.RData ## 
-## 
 
 ## RUN FDR ##
-## THIS IS FOR FIGURE 5 TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP##
 allres_p <- p.adjust(c(
   allres$`F_treatment_flag_28.Pr(>|t|)`, allres$`M_treatment_flag_28.Pr(>|t|)`,
   allres$`F_treatment_flag_42.Pr(>|t|)`, allres$`M_treatment_flag_42.Pr(>|t|)`,
@@ -1110,12 +1100,13 @@ sum(M_WT_MTX_42_pc != 0) #8
 sum(F_WT_MTX_63_pc != 0) #0
 sum(M_WT_MTX_63_pc != 0) #0
 
-##################################################################################
-## LOAD: ALLRES.RData ## 
 
-## CHECKING IF THERE IS A GENOTYPE EFFECT ##
+## CHECKING FOR GENOTYPE EFFECT ##
+## THIS IS FOR FIGURE 6A TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE TO CREATE THE BRAIN MAP ##
 
-## THIS IS FOR FIGURE 6 TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE ##
+## RE-LOAD: ALLRES.RData ##
+
+## FDR ##
 allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
                        allres$`F_genotype_flag_28.Pr(>|t|)`, 
                        allres$`F_genotype_flag_42.Pr(>|t|)`, 
