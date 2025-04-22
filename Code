@@ -1900,3 +1900,26 @@ summary(Linear_mixed_model)
 
 ## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
 
+
+###############################################################
+
+## LOAD DATA ##
+load("/projects/tayoub/ALLRES.RData")
+
+## SET ESTIMATES TO ZERO IF P-VALUE IS LESS THAN 0.05 ##
+allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` * (allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05)
+allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` * (allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05)
+
+## PERCENT CHANGE ##
+
+## FEMALE ##
+F_28_pc <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$age_factor28.Estimate * 100
+
+## MALE ##
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_28_pc <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
+
+## CHECKING NUMBER OF STRUCTURES ##
+sum(F_28_pc != 0) ## 19 structures ##
+sum(M_28_pc != 0) ## 5 ##
+
