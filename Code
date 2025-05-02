@@ -1,1050 +1,366 @@
 ###### THESIS R CODE ######
+###### TIFFANY AYOUB ######
 
-## LOAD PACKAGES ##
+#########################################################
+## LOAD PACKAGES                                       ##
+#########################################################
+
 library(tidyverse)
 library(lme4)
 library(lmerTest)
 library(ggplot2)
+library(gridExtra)
+
+
+#########################################################
+## LOAD DATA                                           ##
+#########################################################
 
 ## LOAD: "FINAL_DATA_FRAME.RData ## THIS IS THE CSV FILE WITH BRAIN VOLUMES FROM THE STUDY ##
+load("FINAL_DATA_FRAME.RData")
+df<-FINAL_DATA_FRAME
 ## LOAD: DSURQEE_R_mapping.csv ## THIS IS THE CSV FILE WITH LABELS FOR THE BRAIN ATLAS WHICH CONTAINS 183 BRAIN STRUCTURES ##
+dt.struc<-read.csv2("DSURQEE_R_mapping.csv",sep=",")
+## ENSURE MATCHED STRUCTURE NAMES IN ATLAS TO STRUCTURE NAMES IN DATA ##
+dt.struc$Structure <- colnames(df)[which(colnames(df) == "amygdala"):(ncol(df))]
 
-###### PLOTTING GREY AND WHITE MATTER ######
 
-## MATCHING STRUCTURE NAMES IN ATLAS TO STRUCTURE NAMES IN DATA ##
-dt.struc$Structure <- colnames(FINAL_DATA_FRAME)[which(colnames(FINAL_DATA_FRAME) == "amygdala"):(ncol(FINAL_DATA_FRAME))]
-
-## CREATE NEW DF CALLED DF_TISSUE KEEPING NON STRUCTURE COLUMNS ##
-df_tissue <- data.frame(FINAL_DATA_FRAME[,1:(which(colnames(FINAL_DATA_FRAME) == "amygdala")-1)])
+#########################################################
+## SUMMARY VOLUME CALCULATION                          ##
+#########################################################
 
 ## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER WHITE MATTER TISSUE TYPE ##
 ## SUM ALL WHITE MATTER STRUCTURES ##
 WM_list <- subset(dt.struc, tissue.type == "WM")[,1] 
 WM_list <- c(WM_list, "anterior lobule white matter") # ADDING STRUCTURE MANUALLY THAT IS WM #
 # WHITE MATTER LIST CONSISTS OF 40 STRUCTURES #
-df_tissue$WM <- rowSums(FINAL_DATA_FRAME[,as.character(WM_list)], na.rm = TRUE)
+df$WM <- rowSums(df[,as.character(WM_list)], na.rm = TRUE)
 
 ## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER GREY MATTER TISSUE TYPE ##
 ## SUM ALL GREY MATTER STRUCTURES ##
 GM_list <- subset(dt.struc, tissue.type == "GM")[,1]
 GM_list <- c(GM_list, "midbrain", "medulla", "lateral septum", "medial septum") # ADDING STRUCTURES MANUALLY -- THESE ARE MIXED TISSUE MADE UP MOSTLY OF GM #
-# WHITE MATTER LIST CONSISTS OF 138 STRUCTURES #
-df_tissue$GM <- rowSums(FINAL_DATA_FRAME[,GM_list], na.rm = TRUE)
+# GREY MATTER LIST CONSISTS OF 138 STRUCTURES #
+df$GM <- rowSums(df[,GM_list], na.rm = TRUE)
 
 ## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER HIPPOCAMPUS TISSUE TYPE ##
 ## SUM ALL HIPPOCAMPUS STRUCTURES ##
 HP_list <- subset(dt.struc, hierarchy == "Hippocampal region")[,1]
 # HIPPOCAMPUS HAS 15 STRUCTUES #
-df_tissue$HP <- rowSums(FINAL_DATA_FRAME[,HP_list], na.rm = TRUE)
+df$HP <- rowSums(df[,HP_list], na.rm = TRUE)
 
-## LINEAR MODEL ##
+## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER PARIETAL REGION TISSUE TYPE ##
+## SUM ALL PR STRUCTURES ##
+PR_list <- subset(dt.struc, hierarchy == "Parietal region")[,1]
+# PR HAS 13 STRUCTUES #
+df$PR <- rowSums(df[,PR_list], na.rm = TRUE)
 
-## FIRST SETTING FLAGS FOR LINEAR MODEL ##
 
-age_factor <- as.character(df_tissue$Age)
-sex_flag <- (df_tissue$Sex == "Male") * 1
+#########################################################
+## LINEAR MODEL SETUP                                  ##
+#########################################################
+
+## FIRST SETUP CONVENIENT FLAGS FOR LINEAR MODEL ##
+df$age_factor <- factor(as.character(df$Age),levels=c("14","28","42","63"))
+df$sex_flag <- (df$Sex == "Male") * 1
 
 ## TREATMENT FLAGS FOR EACH TIME POINT ##
-M_treatment_flag_28 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 28)
-F_treatment_flag_28 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 28)
-M_treatment_flag_42 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 42)
-F_treatment_flag_42 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 42)
-M_treatment_flag_63 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Male") * (df_tissue$Age == 63)
-F_treatment_flag_63 <- (df_tissue$Treatment == "MTX") * (df_tissue$Sex == "Female") * (df_tissue$Age == 63)
+df$M_treatment_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 28)
+df$F_treatment_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 28)
+df$M_treatment_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 42)
+df$F_treatment_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 42)
+df$M_treatment_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 63)
+df$F_treatment_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 63)
 
 ## GENOTYPE FLAGS FOR EACH TIME POINT ##
-M_genotype_flag_14 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 14)
-F_genotype_flag_14 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 14)
-M_genotype_flag_28 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 28)
-F_genotype_flag_28 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 28)
-M_genotype_flag_42 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 42)
-F_genotype_flag_42 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 42)
-M_genotype_flag_63 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Male") * (df_tissue$Age == 63)
-F_genotype_flag_63 <- (df_tissue$Genotype == "KO") * (df_tissue$Sex == "Female") * (df_tissue$Age == 63)
+df$M_genotype_flag_14 <- (df$Genotype == "KO") * (df$Sex == "Male") * (df$Age == 14)
+df$F_genotype_flag_14 <- (df$Genotype == "KO") * (df$Sex == "Female") * (df$Age == 14)
+df$M_genotype_flag_28 <- (df$Genotype == "KO") * (df$Sex == "Male") * (df$Age == 28)
+df$F_genotype_flag_28 <- (df$Genotype == "KO") * (df$Sex == "Female") * (df$Age == 28)
+df$M_genotype_flag_42 <- (df$Genotype == "KO") * (df$Sex == "Male") * (df$Age == 42)
+df$F_genotype_flag_42 <- (df$Genotype == "KO") * (df$Sex == "Female") * (df$Age == 42)
+df$M_genotype_flag_63 <- (df$Genotype == "KO") * (df$Sex == "Male") * (df$Age == 63)
+df$F_genotype_flag_63 <- (df$Genotype == "KO") * (df$Sex == "Female") * (df$Age == 63)
 
 ## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE TO AVOID COUNTING THE SAME CAGE MULTIPLE TIMES)
-mean_litter_size <- mean(df_tissue$Litter_size[!duplicated(df_tissue$Home_cage)])
-sd_litter_size <- sd(df_tissue$Litter_size[!duplicated(df_tissue$Home_cage)])
+mean_litter_size <- mean(df$Litter_size[!duplicated(df$Home_cage)])
+sd_litter_size <- sd(df$Litter_size[!duplicated(df$Home_cage)])
 
 ## CREATE Z-SCORE FOR LITTER SIZE TO STANDARDIZE IT ##
-df_tissue <- df_tissue %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+df <- df %>% mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
 
-## GREY MATTER FOR MIXED LINEAR EFFECTS MODEL ##
+## LINEAR MIXED EFFECTS MODEL FORMULA (RHS) ##
+formula_rhs <- " -1 + age_factor + age_factor:sex_flag + 
+                 age_factor:z_litter_size +
+                 M_treatment_flag_28 + F_treatment_flag_28 +
+                 M_treatment_flag_42 + F_treatment_flag_42 + 
+                 M_treatment_flag_63 + F_treatment_flag_63 + 
+                 M_genotype_flag_14 + F_genotype_flag_14 +
+                 M_genotype_flag_28 + F_genotype_flag_28 +
+                 M_genotype_flag_42 + F_genotype_flag_42 + 
+                 M_genotype_flag_63 + F_genotype_flag_63 +
+                 M_treatment_flag_28:M_genotype_flag_28 +
+                 F_treatment_flag_28:F_genotype_flag_28 +
+                 M_treatment_flag_42:M_genotype_flag_42 +
+                 F_treatment_flag_42:F_genotype_flag_42 +
+                 M_treatment_flag_63:M_genotype_flag_63 +
+                 F_treatment_flag_63:F_genotype_flag_63 +
+                 (1|ID) + (1|Home_cage)"
 
-formula_gm <- "`GM` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)"
 
-clm_gm <- lmer(formula_gm, data = df_tissue)
-slm_gm <- summary(clm_gm)
-slm_gm
+###################################################################
+## GENERIC FUNCTION TO MODEL AND GENERATE DIFFERENT PLOTS        ##
+###################################################################
 
+myplotfunc<-function(structname,
+                     formula_rhs,
+                     GroupFilter=c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"),
+                     PltType="longitudinal", #or, e.g., "AgeP28"
+                     PltTitle="Structure Plot"){
+    cform <- as.formula( paste0("`",structname,"`"," ~ ",formula_rhs) )
+    clm <- lmer(cform, data = df)
+    slm <- summary(clm)
+    dfmut <- df %>% mutate(Group = paste(Genotype, Treatment, sep = "-"))
+    ## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
+    adjusted_vol <- df[,structname] - ranef(clm)$ID[as.character(df$ID), "(Intercept)"] - ranef(clm)$Home_cage[as.character(df$Home_cage), "(Intercept)"]
+    dfmut <- dfmut %>% mutate(adjusted_vol = adjusted_vol)
+    ## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
+    dfmut <- dfmut %>% filter(Group %in% GroupFilter)
+    dfmut$Group <- factor(dfmut$Group,levels=GroupFilter) #input GroupFilter determines plot order
+    if (grepl("^AgeP",PltType)){
+        dfmut <- dfmut %>% filter(as.character(age_factor)==sub("AgeP","",PltType))
+    } else if (grepl("^AgeGroupP",PltType)){
+        #this is really the sampe as "AgeP" but formatted slightly differently
+        dfmut <- dfmut %>% filter(as.character(age_factor)==sub("AgeGroupP","",PltType))
+    }
+    ## CALCULATE SUMMARY STATS ##
+    summary_df <- dfmut %>%
+                  group_by(Age, Group, Sex) %>%
+                  summarise(
+                      mean_vol = mean(adjusted_vol, na.rm = TRUE),
+                      se_vol = sd(adjusted_vol, na.rm = TRUE) / sqrt(length(adjusted_vol)),
+                      ci_low = mean_vol - qt(0.975, df = length(adjusted_vol) - 1) * se_vol,
+                      ci_high = mean_vol + qt(0.975, df = length(adjusted_vol) - 1) * se_vol,
+                      .groups = 'drop'
+                  )
+    ## DEFINE COLOURS ##
+    my_colours_long <- c("WT-Saline" = "blue","WT-MTX" = "red","KO-Saline" = "black","KO-MTX" = "grey")
+    my_colours_long <- my_colours_long[names(my_colours_long) %in% GroupFilter]
+    ## DEFINE GROUP LABELS ##
+    group_labels <- c("WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
+                      "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX"),
+                      "KO-Saline" = bquote(italic("Il6")^"-/-" ~ "Saline"),
+                      "KO-MTX"    = bquote(italic("Il6")^"-/-" ~ "MTX") )
+    group_labels <- group_labels[names(group_labels) %in% GroupFilter]
+    ## PLOT ##
+    if (PltType=="longitudinal"){
+        cplt <- ggplot(summary_df, aes(x = as.character(Age), y = mean_vol, group = Group, color = Group)) + 
+                       geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                                     width = 0.3, position = position_dodge(width = 0.8), size = 1) +
+                       geom_point(size = 4, position = position_dodge(width = 0.8)) +
+                       geom_jitter(data = dfmut, aes(y = adjusted_vol, color = Group),
+                                   alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
+                       geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +
+                       facet_wrap(~Sex) +
+                       labs(
+                            title = PltTitle,
+                            x = "Age (Days)", 
+                            y = expression("Volume" ~ "(" * mm^3 * ")"),
+                            color = "Groups"
+                           ) +
+                       scale_color_manual(values = my_colours_long, labels = group_labels) +
+                       theme_minimal(base_size = 18) +
+                       theme(
+                         text = element_text(family = "Arial", size = 18),
+                         plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+                         axis.title.x = element_text(size = 18),
+                         axis.title.y = element_text(size = 18),
+                         axis.text.x = element_text(size = 16),
+                         axis.text.y = element_text(size = 16),
+                         strip.text = element_text(size = 18),
+                         legend.title = element_text(size = 18),
+                         legend.text = element_text(size = 16),
+                         legend.position = "right",
+                         panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+                       )
+    } else if (grepl("^AgeP",PltType)){
+        cplt <- ggplot(summary_df, aes(x = as.character(Age), y = mean_vol, group = Group, color = Group)) + 
+                       geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
+                                     width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
+                       geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
+                       geom_jitter(data = dfmut, aes(y = adjusted_vol, color = Group),  
+                                   alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
+                       facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
+                       labs(
+                            title = PltTitle,
+                            x = NULL,
+                            y = expression("Volume" ~ "(" * mm^3 * ")"),
+                            color = "Groups"
+                           ) +
+                       scale_color_manual(values = my_colours_long, labels = group_labels) +
+                       theme_minimal(base_size = 18) +  # Match base font size
+                       theme(
+                            text = element_text(family = "Arial", size = 18),
+                            plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_text(size = 18),
+                            axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.text.y = element_text(size = 16),
+                            strip.placement = "outside",
+                            strip.text = element_text(size = 18),
+                            legend.title = element_text(size = 18),
+                            legend.text = element_text(size = 16),
+                            legend.position = "right",
+                            panel.border = element_rect(color = "black", fill = NA, size = 0.7)
+                          )
+    } else if (grepl("^AgeGroupP",PltType)){
+        cplt <- ggplot(summary_df, aes(x = Group, y = mean_vol, color = Group)) +
+                geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                              width = 0.3, size = 1, position = position_dodge(width = 0.8)) +
+                geom_point(size = 5, position = position_dodge(width = 0.8)) +
+                geom_jitter(data = dfmut, aes(y = adjusted_vol, color = Group),
+                            alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
+                facet_wrap(~Sex, strip.position = "bottom") +
+                labs(
+                     title = PltTitle,
+                     x = NULL,
+                     y = expression("Volume" ~ "(" * mm^3 * ")")
+                    ) +
+                scale_color_manual(values = my_colours_long) +
+                scale_x_discrete(labels = group_labels) +
+                theme_minimal(base_size = 14) +
+                theme(
+                  text = element_text(family = "Arial", size = 14),
+                  plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+                  axis.title.x = element_blank(),
+                  axis.title.y = element_text(face = "plain", size = 14),
+                  axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
+                  axis.text.y = element_text(size = 14),
+                  axis.ticks.x = element_blank(),
+                  strip.placement = "outside",
+                  strip.text = element_text(size = 14, face = "bold"),
+                  legend.position = "none",
+                  panel.border = element_blank(),
+                  axis.line.y = element_line(color = "black", size = 0.5),
+                  axis.line.x = element_line(color = "black", size = 0.5)
+                )
+    }
+    return(list("slm"=slm,"plt"=cplt))
+}
+
+
+#########################################################
+## SUMMARY LONGITUDINAL VOLUME PLOTS (WT MTX)          ##
+#########################################################
+
+## GREY MATTER ##
+gmresult<-myplotfunc("GM",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),PltType="longitudinal",PltTitle="Grey Matter")
+slm_gm <- gmresult[["slm"]]
 # SIGNIFICANT RESULTS FOR WT MICE =
 # M_TREATMENT_FLAG_28 = P < 0.001 
 # F_TREATMENT_FLAG_28 = P < 0.001 
 # M_TREATMENT_FLAG_42 = P < 0.05
-
-## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
-df_tissue <- df_tissue %>%
-  mutate(Group = paste(Genotype, Treatment, sep = "-"))
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_gm <- df_tissue$GM - ranef(clm_gm)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_gm)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
-df_tissue <- df_tissue %>%
-  mutate(GM_adjusted = adjusted_gm)
-
-## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
-df_tissue_filtered_gm <- df_tissue %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"))
-
-## SET FACTOR LEVELS FOR PLOTTING ORDER ##
-df_tissue_filtered_gm$Group <- factor(df_tissue_filtered_gm$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## CALCULATE SUMMARY STATS ##
-summary_df_gm <- df_tissue_filtered_gm %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_gm = mean(GM_adjusted, na.rm = TRUE),
-    se_gm = sd(GM_adjusted, na.rm = TRUE) / sqrt(length(GM_adjusted)),
-    ci_low = mean_gm - qt(0.975, df = length(GM_adjusted) - 1) * se_gm,
-    ci_high = mean_gm + qt(0.975, df = length(GM_adjusted) - 1) * se_gm,
-    .groups = 'drop'
-  )
-
-## DEFINE COLOURS ##
-my_colours_gm <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-
-## PLOT ##
-plot_gm <- ggplot(summary_df_gm, aes(x = as.character(Age), y = mean_gm, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +
-  geom_point(size = 4, position = position_dodge(width = 0.8)) +
-  geom_jitter(data = df_tissue_filtered_gm, aes(y = GM_adjusted, color = Group),
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
-  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +
-  facet_wrap(~Sex) +
-  labs(
-    title = "Grey Matter",
-    x = "Age (Days)", 
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_gm, labels = group_labels) +
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_text(size = 18),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-## DISPLAY THE PLOT ##
-print(plot_gm)
+cairo_pdf("Figure3B.pdf",width=8.0,height=10.0)
+print(gmresult[["plt"]]) 
+dev.off()
 
 
 ## WHITE MATTER ##
-
-formula_wm <- "`WM` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)"
-
-clm_wm <- lmer(formula_wm, data = df_tissue)
-slm_wm <- summary(clm_wm)
-slm_wm
-
-# SIGNIFICANT RESULTS FOR WT MICE =
+wmresult<-myplotfunc("WM",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),PltType="longitudinal",PltTitle="White Matter")
+slm_wm <- wmresult[["slm"]]
 # M_TREATMENT_FLAG_28 = P < 0.001 
 # F_TREATMENT_FLAG_28 = P < 0.01 
+cairo_pdf("Figure3C.pdf",width=8.0,height=10.0)
+print(wmresult[["plt"]]) 
+dev.off()
 
-## CREATE GROUP COLUMN (COMBING TREATMENT AND GENOTYPE) ## 
-df_tissue <- df_tissue %>%
-  mutate(Group = paste(Genotype, Treatment, sep = "-"))
 
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_wm <- df_tissue$WM - ranef(clm_wm)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_wm)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
-df_tissue <- df_tissue %>%
-  mutate(WM_adjusted = adjusted_wm)
-
-## FILTER DF_TISSUE TO INCLUDE ONLY WT-SALINE AND WT-MTX FOR PLOTTING ## 
-df_tissue_filtered_wm <- df_tissue %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"))
-
-## ENSURE THE GROUP COLUMN HAS THE CORRECT ORDER FOR PLOTTING ##
-df_tissue_filtered_wm$Group <- factor(df_tissue_filtered_wm$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## CALCULATING SUMMARY STAT FOR WM IN DF_TISSUE ## 
-summary_df_wm <- df_tissue_filtered_wm %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_wm = mean(WM_adjusted, na.rm = TRUE),
-    se_wm = sd(WM_adjusted, na.rm = TRUE) / sqrt(length(WM_adjusted)),
-    ci_low = mean_wm - qt(0.975, df = length(WM_adjusted) - 1) * se_wm,
-    ci_high = mean_wm + qt(0.975, df = length(WM_adjusted) - 1) * se_wm,
-    .groups = 'drop'
-  )
-
-## DEFINE COLOURS ##
-my_colours_wm <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-## PLOTTING ##
-plot_wm <- ggplot(summary_df_wm, aes(x = as.character(Age), y = mean_wm, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
-  geom_jitter(data = df_tissue_filtered_wm, aes(y = WM_adjusted, color = Group),
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
-  facet_wrap(~Sex) +  
-  labs(
-    title = "White Matter",
-    x = "Age (Days)", 
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_wm, labels = group_labels) +
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_text(size = 18),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-print(plot_wm)
-
-###### PLOTTING THE HIPPOCAMPUS ######
-
-formula_hp <- "`HP` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)"
-
-# Run the linear mixed-effects model
-clm_hp <- lmer(formula_hp, data = df_tissue)
-slm_hp <- summary(clm_hp)
-slm_hp
-
-# SIGNIFICANT RESULTS FOR WT MICE =
+## HIPPOCAMPUS ##
+hpresult<-myplotfunc("HP",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),PltType="longitudinal",PltTitle="Hippocampus")
+slm_hp <- hpresult[["slm"]]
 # M_TREATMENT_FLAG_28 = P < 0.01 
 # F_TREATMENT_FLAG_28 = P < 0.05
-
-## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
-df_tissue <- df_tissue %>%
-  mutate(Group = paste(Genotype, Treatment, sep = "-"))
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_hp <- df_tissue$HP - ranef(clm_hp)$ID[as.character(df_tissue$ID), "(Intercept)"] - ranef(clm_hp)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
-df_tissue <- df_tissue %>%
-  mutate(HP_adjusted = adjusted_hp)
-
-## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
-df_tissue_filtered_hp <- df_tissue %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"))
-
-## SET FACTOR LEVELS FOR PLOTTING ORDER ##
-df_tissue_filtered_hp$Group <- factor(df_tissue_filtered_hp$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## CALCULATE SUMMARY STATS ##
-summary_df_hp <- df_tissue_filtered_hp %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_hp = mean(HP_adjusted, na.rm = TRUE),
-    se_hp = sd(HP_adjusted, na.rm = TRUE) / sqrt(length(HP_adjusted)),
-    ci_low = mean_hp - qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
-    ci_high = mean_hp + qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
-    .groups = 'drop'
-  )
-
-## DEFINE COLOURS ##
-my_colours_hp <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-
-## PLOTTING ##
-plot_hp <- ggplot(summary_df_hp, aes(x = as.character(Age), y = mean_hp, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
-  geom_jitter(data = df_tissue_filtered_hp, aes(y = HP_adjusted, color = Group),  # Use adjusted HP in filtered data
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
-  facet_wrap(~Sex) +  
-  labs(
-    title = "Hippocampus",
-    x = "Age (Days)", 
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_hp, labels = group_labels) +  # Uses same label style as GM
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_text(size = 18),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-## DISPLAY THE PLOT ##
-print(plot_hp)
-
-###### PLOTTING THE THALAMUS ######
-
-## LINEAR MODEL ##
-
-## AGE AND SEX FLAGS ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
-
-## TREATMENT FLAGS ##
-M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## GENOTYPE FLAGS ##
-M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
-F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
-M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## CREATE GROUP COLUMN ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(Group = paste(Genotype, Treatment, sep = "-"))
-
-
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-
-## Z-SCORE ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-formula_thalamus <- "`thalamus` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)"
-
-# Run the linear mixed-effects model
-clm_thalamus <- lmer(formula_thalamus, data = FINAL_DATA_FRAME)
-slm_thalamus <- summary(clm_thalamus)
-slm_thalamus
-
-# WT MTX FEMALE DIFF @ P28 = -3.3 % #
-# WT MTX MALE DIFF @ P28 = -5.4 % #
-
-
-## CREATE GROUP COLUMN (COMBINING TREATMENT AND GENOTYPE) ## 
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(Group = paste(Genotype, Treatment, sep = "-"))
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_thalamus <- FINAL_DATA_FRAME$`thalamus` - 
-  ranef(clm_thalamus)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
-  ranef(clm_thalamus)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(thalamus_adjusted = adjusted_thalamus)
-
-## FILTER TO INCLUDE ONLY WT-SALINE AND WT-MTX ## 
-FINAL_DATA_FRAME_thalamus <- FINAL_DATA_FRAME %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"))
-
-## SET FACTOR LEVELS FOR PLOTTING ORDER ##
-FINAL_DATA_FRAME_thalamus$Group <- factor(FINAL_DATA_FRAME_thalamus$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## CALCULATE SUMMARY STATS ##
-summary_df_thalamus <- FINAL_DATA_FRAME_thalamus %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_thalamus = mean(thalamus_adjusted, na.rm = TRUE),
-    se_thalamus = sd(thalamus_adjusted, na.rm = TRUE) / sqrt(length(thalamus_adjusted)),
-    ci_low = mean_thalamus - qt(0.975, df = length(thalamus_adjusted) - 1) * se_thalamus,
-    ci_high = mean_thalamus + qt(0.975, df = length(thalamus_adjusted) - 1) * se_thalamus,
-    .groups = 'drop'
-  )
-
-## DEFINE COLOURS ##
-my_colours_thalamus <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-
-## PLOTTING THALAMUS ##
-plot_thalamus <- ggplot(summary_df_thalamus, aes(x = as.character(Age), y = mean_thalamus, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 4, position = position_dodge(width = 0.8)) +  # Mean points
-  geom_jitter(data = FINAL_DATA_FRAME_thalamus, aes(y = thalamus_adjusted, color = Group),  # Use adjusted thalamus in filtered data
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  geom_vline(xintercept = 1.5, linetype = "dashed", color = "black", size = 0.5) +  # Vertical line between p14 and p28
-  facet_wrap(~Sex) +  
-  labs(
-    title = "Thalamus",
-    x = "Age (Days)", 
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_thalamus, labels = group_labels) +  # Uses same label style
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_text(size = 18),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-## DISPLAY THE PLOT ##
-print(plot_thalamus)
-
-#############################################################################
-
-#### NOW DOING ONLY P28 TIMEPOINT FOR WT MICE FOR FIGURE 5B,C,D & E ####
-
-###### PRIMARY VISUAL CORTEX: BINOCULAR AREA ######
-
-## DEFINE FORMULA FOR PRIMARY VISUAL CORTEX: BINOCULAR AREA ##
-formula_pvc_b <- `Primary visual cortex: binocular area` ~ -1 + age_factor + age_factor:sex_flag + 
-  age_factor:z_litter_size +
-  M_treatment_flag_28 + F_treatment_flag_28 +
-  M_treatment_flag_42 + F_treatment_flag_42 + 
-  M_treatment_flag_63 + F_treatment_flag_63 + 
-  M_genotype_flag_14 + F_genotype_flag_14 +
-  M_genotype_flag_28 + F_genotype_flag_28 +
-  M_genotype_flag_42 + F_genotype_flag_42 + 
-  M_genotype_flag_63 + F_genotype_flag_63 +
-  M_treatment_flag_28:M_genotype_flag_28 +
-  F_treatment_flag_28:F_genotype_flag_28 +
-  M_treatment_flag_42:M_genotype_flag_42 +
-  F_treatment_flag_42:F_genotype_flag_42 +
-  M_treatment_flag_63:M_genotype_flag_63 +
-  F_treatment_flag_63:F_genotype_flag_63 +
-  (1|ID) + (1|Home_cage)
-
-## MODEL OUTPUT ## 
-clm_pvc_b <- lmer(formula_pvc_b, data = FINAL_DATA_FRAME)
-slm_pvc_b <- summary(clm_pvc_b)
-slm_pvc_b
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_pvc_b <- FINAL_DATA_FRAME$`Primary visual cortex: binocular area` - 
-  ranef(clm_pvc_b)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
-  ranef(clm_pvc_b)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(pvc_b_adjusted = adjusted_pvc_b)
-
-## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
-FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
-FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
-
-## CALCULATE SUMMARY STATISTICS FOR PRIMARY VISUAL CORTEX: BINOCULAR AREA ## 
-summary_df_pvc_b <- FINAL_DATA_FRAME_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_pvc_b = mean(pvc_b_adjusted, na.rm = TRUE),
-    se_pvc_b = sd(pvc_b_adjusted, na.rm = TRUE) / sqrt(length(pvc_b_adjusted)),
-    ci_low = mean_pvc_b - qt(0.975, df = length(pvc_b_adjusted) - 1) * se_pvc_b,
-    ci_high = mean_pvc_b + qt(0.975, df = length(pvc_b_adjusted) - 1) * se_pvc_b,
-    .groups = 'drop'
-  )
-
-## DEFINE COLORS ##
-my_colours_pvc_b <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-plot_pvc_b <- ggplot(summary_df_pvc_b, aes(x = as.character(Age), y = mean_pvc_b, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
-  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = pvc_b_adjusted, color = Group),  
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
-  labs(
-    title = "Primary Visual Cortex: Binocular Area (P28)",
-    x = NULL,
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_pvc_b, labels = group_labels) +  # Match thalamus plot
-  theme_minimal(base_size = 18) +  # Match base font size
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 16),
-    strip.placement = "outside",
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-print(plot_pvc_b)
-
-
-###### PRIMARY VISUAL CORTEX: MONOCULAR AREA ######
-
-## DEFINE FORMULA FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ##
-formula_pvc_m <- `Primary visual cortex: monocular area` ~ -1 + age_factor + age_factor:sex_flag + 
-  age_factor:z_litter_size +
-  M_treatment_flag_28 + F_treatment_flag_28 +
-  M_treatment_flag_42 + F_treatment_flag_42 + 
-  M_treatment_flag_63 + F_treatment_flag_63 + 
-  M_genotype_flag_14 + F_genotype_flag_14 +
-  M_genotype_flag_28 + F_genotype_flag_28 +
-  M_genotype_flag_42 + F_genotype_flag_42 + 
-  M_genotype_flag_63 + F_genotype_flag_63 +
-  M_treatment_flag_28:M_genotype_flag_28 +
-  F_treatment_flag_28:F_genotype_flag_28 +
-  M_treatment_flag_42:M_genotype_flag_42 +
-  F_treatment_flag_42:F_genotype_flag_42 +
-  M_treatment_flag_63:M_genotype_flag_63 +
-  F_treatment_flag_63:F_genotype_flag_63 +
-  (1|ID) + (1|Home_cage)
-
-## MODEL OUTPUT ## 
-clm_pvc_m <- lmer(formula_pvc_m, data = FINAL_DATA_FRAME)
-slm_pvc_m <- summary(clm_pvc_m)
-slm_pvc_m
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_pvc_m <- FINAL_DATA_FRAME$`Primary visual cortex: monocular area` - 
-  ranef(clm_pvc_m)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
-  ranef(clm_pvc_m)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(pvc_m_adjusted = adjusted_pvc_m)
-
-## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
-FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
-FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
-
-## CALCULATE SUMMARY STATISTICS FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ## 
-summary_df_pvc_m <- FINAL_DATA_FRAME_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_pvc_m = mean(pvc_m_adjusted, na.rm = TRUE),
-    se_pvc_m = sd(pvc_m_adjusted, na.rm = TRUE) / sqrt(length(pvc_m_adjusted)),
-    ci_low = mean_pvc_m - qt(0.975, df = length(pvc_m_adjusted) - 1) * se_pvc_m,
-    ci_high = mean_pvc_m + qt(0.975, df = length(pvc_m_adjusted) - 1) * se_pvc_m,
-    .groups = 'drop'
-  )
-
-## DEFINE COLORS ##
-my_colours_pvc_m <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX")
-)
-
-## PLOTTING FOR PRIMARY VISUAL CORTEX: MONOCULAR AREA ##
-plot_pvc_m <- ggplot(summary_df_pvc_m, aes(x = as.character(Age), y = mean_pvc_m, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
-  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = pvc_m_adjusted, color = Group),  
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
-  labs(
-    title = "Primary Visual Cortex: Monocular Area (P28)",
-    x = NULL,
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_pvc_m, labels = group_labels) +  # Match thalamus styling
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 16),
-    strip.placement = "outside",
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-plot(plot_pvc_m)
-
-
-###### SECONDARY VISUAL CORTEX: LATERAL AREA ######
-
-formula_svc <- `Secondary visual cortex: lateral area` ~ -1 + age_factor + age_factor:sex_flag + 
-  age_factor:z_litter_size +
-  M_treatment_flag_28 + F_treatment_flag_28 +
-  M_treatment_flag_42 + F_treatment_flag_42 + 
-  M_treatment_flag_63 + F_treatment_flag_63 + 
-  M_genotype_flag_14 + F_genotype_flag_14 +
-  M_genotype_flag_28 + F_genotype_flag_28 +
-  M_genotype_flag_42 + F_genotype_flag_42 + 
-  M_genotype_flag_63 + F_genotype_flag_63 +
-  M_treatment_flag_28:M_genotype_flag_28 +
-  F_treatment_flag_28:F_genotype_flag_28 +
-  M_treatment_flag_42:M_genotype_flag_42 +
-  F_treatment_flag_42:F_genotype_flag_42 +
-  M_treatment_flag_63:M_genotype_flag_63 +
-  F_treatment_flag_63:F_genotype_flag_63 +
-  (1|ID) + (1|Home_cage)
-
-## MODEL OUTPUT ## 
-clm_svc <- lmer(formula_svc, data = FINAL_DATA_FRAME)
-slm_svc <- summary(clm_svc)
-slm_svc
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_svc <- FINAL_DATA_FRAME$`Secondary visual cortex: lateral area` - 
-  ranef(clm_svc)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
-  ranef(clm_svc)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(secondary_visual_adjusted = adjusted_svc)
-
-## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
-FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
-FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
-
-## CALCULATE SUMMARY STATISTICS FOR SECONDARY VISUAL CORTEX: LATERAL AREA ## 
-summary_df_svc <- FINAL_DATA_FRAME_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_svc = mean(secondary_visual_adjusted, na.rm = TRUE),
-    se_svc = sd(secondary_visual_adjusted, na.rm = TRUE) / sqrt(length(secondary_visual_adjusted)),
-    ci_low = mean_svc - qt(0.975, df = length(secondary_visual_adjusted) - 1) * se_svc,
-    ci_high = mean_svc + qt(0.975, df = length(secondary_visual_adjusted) - 1) * se_svc,
-    .groups = 'drop'
-  )
-
-## DEFINE COLORS ##
-my_colours_svc <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-## PLOTTING FOR SECONDARY VISUAL CORTEX: LATERAL AREA ##
-plot_svc <- ggplot(summary_df_svc, aes(x = as.character(Age), y = mean_svc, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
-  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = secondary_visual_adjusted, color = Group),  
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
-  labs(
-    title = "Secondary Visual Cortex: Lateral Area (P28)",
-    x = NULL,
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_svc, labels = group_labels) +  # Match thalamus styling
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 16),
-    strip.placement = "outside",
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-print(plot_svc)
-
-
-###### PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ######
-
-formula_psc_hindlimb <- `Primary somatosensory cortex: hindlimb region` ~ -1 + age_factor + age_factor:sex_flag + 
-  age_factor:z_litter_size +
-  M_treatment_flag_28 + F_treatment_flag_28 +
-  M_treatment_flag_42 + F_treatment_flag_42 + 
-  M_treatment_flag_63 + F_treatment_flag_63 + 
-  M_genotype_flag_14 + F_genotype_flag_14 +
-  M_genotype_flag_28 + F_genotype_flag_28 +
-  M_genotype_flag_42 + F_genotype_flag_42 + 
-  M_genotype_flag_63 + F_genotype_flag_63 +
-  M_treatment_flag_28:M_genotype_flag_28 +
-  F_treatment_flag_28:F_genotype_flag_28 +
-  M_treatment_flag_42:M_genotype_flag_42 +
-  F_treatment_flag_42:F_genotype_flag_42 +
-  M_treatment_flag_63:M_genotype_flag_63 +
-  F_treatment_flag_63:F_genotype_flag_63 +
-  (1|ID) + (1|Home_cage)
-
-## MODEL OUTPUT ## 
-clm_psc_hindlimb <- lmer(formula_psc_hindlimb, data = FINAL_DATA_FRAME)
-slm_psc_hindlimb <- summary(clm_psc_hindlimb)
-slm_psc_hindlimb
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_psc_hindlimb <- FINAL_DATA_FRAME$`Primary somatosensory cortex: hindlimb region` - 
-  ranef(clm_psc_hindlimb)$ID[as.character(FINAL_DATA_FRAME$ID), "(Intercept)"] - 
-  ranef(clm_psc_hindlimb)$Home_cage[as.character(FINAL_DATA_FRAME$Home_cage), "(Intercept)"]
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(hindlimb_adjusted = adjusted_psc_hindlimb)
-
-## ENSURE GROUP HAS CORRECT ORDER FOR PLOTTING ##
-FINAL_DATA_FRAME$Group <- factor(FINAL_DATA_FRAME$Group, levels = c("WT-Saline", "WT-MTX"))
-
-## FILTER TO JUST INCLUDE WT MICE AT AGE 28 ## 
-FINAL_DATA_FRAME_filtered <- FINAL_DATA_FRAME %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX"), Age == 28)
-
-## CALCULATE SUMMARY STATISTICS FOR PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ## 
-summary_df_psc_hindlimb <- FINAL_DATA_FRAME_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_psc_hindlimb = mean(hindlimb_adjusted, na.rm = TRUE),
-    se_psc_hindlimb = sd(hindlimb_adjusted, na.rm = TRUE) / sqrt(length(hindlimb_adjusted)),
-    ci_low = mean_psc_hindlimb - qt(0.975, df = length(hindlimb_adjusted) - 1) * se_psc_hindlimb,
-    ci_high = mean_psc_hindlimb + qt(0.975, df = length(hindlimb_adjusted) - 1) * se_psc_hindlimb,
-    .groups = 'drop'
-  )
-
-## DEFINE COLORS ##
-my_colours_psc_hindlimb <- c("WT-Saline" = "blue", "WT-MTX" = "red")
-
-## PLOTTING FOR PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ##
-plot_psc_hindlimb <- ggplot(summary_df_psc_hindlimb, aes(x = as.character(Age), y = mean_psc_hindlimb, group = Group, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), 
-                width = 0.3, position = position_dodge(width = 0.8), size = 1) +  # Error bars for CI
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +  # Larger points for emphasis
-  geom_jitter(data = FINAL_DATA_FRAME_filtered, aes(y = hindlimb_adjusted, color = Group),  
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  facet_wrap(~Sex, labeller = as_labeller(c(Female = "Female", Male = "Male")), strip.position = "bottom") +  
-  labs(
-    title = "Primary Somatosensory Cortex: Hindlimb Region (P28)",
-    x = NULL,
-    y = expression("Volume" ~ "(" * mm^3 * ")"),
-    color = "Groups"
-  ) +
-  scale_color_manual(values = my_colours_psc_hindlimb, labels = group_labels) +  # Match thalamus styling
-  theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "Arial", size = 18),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 18),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 16),
-    strip.placement = "outside",
-    strip.text = element_text(size = 18),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    legend.position = "right",
-    panel.border = element_rect(color = "black", fill = NA, size = 0.7)
-  )
-
-print(plot_psc_hindlimb)
-#################################################################################
-## MAKING HP PLTOS (SHOWING ALL 4 GROUPS AT P28) & PARIETAL LOBE ## THIS IS FOR FIGURE 8A ##
-## ALREADY RAN THE LINEAR MODEL FOR HP ABOVE ##
-
-## EXTRACT RANDOM EFFECTS FOR ID AND HOME_CAGE ## 
-adjusted_hp <- df_tissue$HP -
-  ranef(clm_hp)$ID[as.character(df_tissue$ID), "(Intercept)"] -
-  ranef(clm_hp)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
-
-df_tissue <- df_tissue %>%
-  mutate(HP_adjusted = adjusted_hp)
-
-## SET PLOTTING ORDER
-df_tissue$Group <- factor(df_tissue$Group, levels = c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"))
-
-## FILTER FOR AGE 28 WITH ALL 4 GROUPS ##
-df_tissue_filtered <- df_tissue %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"), Age == 28)
-
-## CALCULATE MEAN, SE, CI FOR EACH GROUP
-summary_df_hp <- df_tissue_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_hp = mean(HP_adjusted, na.rm = TRUE),
-    se_hp = sd(HP_adjusted, na.rm = TRUE) / sqrt(length(HP_adjusted)),
-    ci_low = mean_hp - qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
-    ci_high = mean_hp + qt(0.975, df = length(HP_adjusted) - 1) * se_hp,
-    .groups = 'drop'
-  )
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX"),
-  "KO-Saline" = bquote(italic("Il6")^"-/-" ~ "Saline"),
-  "KO-MTX"    = bquote(italic("Il6")^"-/-" ~ "MTX")
-)
-
-# Define custom colors
-my_colours_hp <- c(
-  "WT-Saline" = "blue",
-  "WT-MTX" = "red",
-  "KO-Saline" = "black",
-  "KO-MTX" = "grey"
-)
-
-# Plot
-plot_hp <- ggplot(summary_df_hp, aes(x = Group, y = mean_hp, color = Group)) +
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
-                width = 0.3, size = 1, position = position_dodge(width = 0.8)) +
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +
-  geom_jitter(data = df_tissue_filtered, aes(y = HP_adjusted, color = Group),
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +
-  facet_wrap(~Sex, strip.position = "bottom") +
-  labs(
-    title = "Hippocampus (P28)",
-    x = NULL,
-    y = expression("Volume" ~ "(" * mm^3 * ")")
-  ) +
-  scale_color_manual(values = my_colours_hp) +
-  scale_x_discrete(labels = group_labels) +
-  theme_minimal(base_size = 14) +
-  theme(
-    text = element_text(family = "Arial", size = 14),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(face = "plain", size = 14),
-    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-    axis.text.y = element_text(size = 14),
-    axis.ticks.x = element_blank(),
-    strip.placement = "outside",
-    strip.text = element_text(size = 14, face = "bold"),
-    legend.position = "none",
-    panel.border = element_blank(),
-    axis.line.y = element_line(color = "black", size = 0.5),
-    axis.line.x = element_line(color = "black", size = 0.5)
-  )
-
-# Display in console
-plot_hp
-
-
-#### FOR PARIETAL REGION (PR) WITH ALL 4 GROUPS AT P28 #### 
-## FILTER ATLAS TO GET ONLY THE STRUCTURES LISTED UNDER PR ##
-## SUM ALL PR STRUCTURES ##
-PR_list <- subset(dt.struc, hierarchy == "Parietal region")[,1]
-# PR HAS 13 STRUCTUES #
-df_tissue$PR <- rowSums(FINAL_DATA_FRAME[,PR_list], na.rm = TRUE)
-
-## LINEAR MODEL FOR PR ##
-formula_PR <- "`PR` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)"
-
-# Run the linear mixed-effects model
-clm_PR <- lmer(formula_PR, data = df_tissue)
-slm_PR <- summary(clm_PR)
-slm_PR
-
-## SIGNIFICANT INTERACTION IN FEMALES AT P28#
-# F_treatment_flag_28:F_genotype_flag_28 = 0.01777 * #
-#Estimate = -1.85748 # KO FEMALES DID WORSE #
-#NO INTERACTION EFFECT IN MALES#
-
-# Extract random effects for ID and Home_cage
-adjusted_pr <- df_tissue$PR -
-  ranef(clm_PR)$ID[as.character(df_tissue$ID), "(Intercept)"] -
-  ranef(clm_PR)$Home_cage[as.character(df_tissue$Home_cage), "(Intercept)"]
-
-df_tissue <- df_tissue %>%
-  mutate(PR_adjusted = adjusted_pr)
-
-# Ensure correct group order
-df_tissue$Group <- factor(df_tissue$Group, levels = c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"))
-
-# Filter for age 28 only
-df_tissue_filtered <- df_tissue %>%
-  filter(Group %in% c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"), Age == 28)
-
-# Summary stats
-summary_df_pr <- df_tissue_filtered %>%
-  group_by(Age, Group, Sex) %>%
-  summarise(
-    mean_pr = mean(PR_adjusted, na.rm = TRUE),
-    se_pr = sd(PR_adjusted, na.rm = TRUE) / sqrt(length(PR_adjusted)),
-    ci_low = mean_pr - qt(0.975, df = length(PR_adjusted) - 1) * se_pr,
-    ci_high = mean_pr + qt(0.975, df = length(PR_adjusted) - 1) * se_pr,
-    .groups = 'drop'
-  )
-
-group_labels <- c(
-  "WT-Saline" = bquote(italic("Il6")^"+/+" ~ "Saline"),
-  "WT-MTX"    = bquote(italic("Il6")^"+/+" ~ "MTX"),
-  "KO-Saline" = bquote(italic("Il6")^"-/-" ~ "Saline"),
-  "KO-MTX"    = bquote(italic("Il6")^"-/-" ~ "MTX")
-)
-
-# Define colors
-my_colours_pr <- c("WT-Saline" = "blue", "WT-MTX" = "red", "KO-Saline" = "black", "KO-MTX" = "grey")
-
-
-# Plot
-plot_pr <- ggplot(summary_df_pr, aes(x = Group, y = mean_pr, color = Group)) + 
-  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
-                width = 0.3, size = 1, position = position_dodge(width = 0.8)) +  
-  geom_point(size = 5, position = position_dodge(width = 0.8)) +  
-  geom_jitter(data = df_tissue_filtered, aes(y = PR_adjusted, color = Group),
-              alpha = 0.4, position = position_jitterdodge(jitter.width = 0, dodge.width = 0.8)) +  
-  facet_wrap(~Sex, strip.position = "bottom") +  
-  labs(
-    title = "Parietal Region (P28)",  
-    x = NULL,  
-    y = expression("Volume" ~ "(" * mm^3 * ")")  
-  ) +
-  scale_color_manual(values = my_colours_pr) +
-  scale_x_discrete(labels = group_labels) +
-  theme_minimal(base_size = 14) +  
-  theme(
-    text = element_text(family = "Arial", size = 14),  
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),  
-    axis.title.x = element_blank(),  
-    axis.title.y = element_text(face = "plain", size = 14),  
-    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),  
-    axis.text.y = element_text(size = 14),  
-    axis.ticks.x = element_blank(),  
-    strip.placement = "outside",  
-    strip.text = element_text(size = 14, face = "bold"),  
-    legend.position = "none",  
-    panel.border = element_blank(),  
-    axis.line.y = element_line(color = "black", size = 0.5),  
-    axis.line.x = element_line(color = "black", size = 0.5)  
-  )
-
-# Display in console
-plot_pr
+cairo_pdf("Figure4A.pdf",width=8.0,height=10.0)
+print(hpresult[["plt"]]) 
+dev.off()
+
+
+## THALAMUS ##
+thalresult<-myplotfunc("thalamus",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),PltType="longitudinal",PltTitle="Thalamus")
+slm_thal <- thalresult[["slm"]]
+cairo_pdf("Figure4B.pdf",width=8.0,height=10.0)
+print(thalresult[["plt"]]) 
+dev.off()
+
+
+
+#########################################################
+## SAMPLE P28 VOLUME PLOTS (WT MTX)                    ##
+#########################################################
+
+## PRIMARY VISUAL CORTEX: BINOCULAR AREA ##
+pvc_b_result<-myplotfunc("Primary visual cortex: binocular area",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),
+                       PltType="AgeP28",PltTitle="Primary Visual Cortex: Binocular Area (P28)")
+slm_pvc_b <- pvc_b_result[["slm"]]
+cairo_pdf("Figure5B.pdf",width=10.0,height=5.5)
+print(pvc_b_result[["plt"]]) 
+dev.off()
+
+
+## PRIMARY VISUAL CORTEX: MONOCULAR AREA ##
+pvc_m_result<-myplotfunc("Primary visual cortex: monocular area",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),
+                       PltType="AgeP28",PltTitle="Primary Visual Cortex: Monocular Area (P28)")
+slm_pvc_m <- pvc_m_result[["slm"]]
+cairo_pdf("Figure5C.pdf",width=10.0,height=5.5)
+print(pvc_m_result[["plt"]]) 
+dev.off()
+
+
+## SECONDARY VISUAL CORTEX: LATERAL AREA ##
+svc_result<-myplotfunc("Secondary visual cortex: lateral area",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),
+                       PltType="AgeP28",PltTitle="Secondary Visual Cortex: Lateral Area (P28)")
+slm_svc <- svc_result[["slm"]]
+cairo_pdf("Figure5D.pdf",width=10.0,height=5.5)
+print(svc_result[["plt"]]) 
+dev.off()
+
+
+## PRIMARY SOMATOSENSORY CORTEX: HINDLIMB REGION ##
+psc_hindlimb_result<-myplotfunc("Primary somatosensory cortex: hindlimb region",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX"),
+                       PltType="AgeP28",PltTitle="Primary Somatosensory Cortex: Hindlimb Region (P28)")
+slm_psc_hindlimb <- psc_hindlimb_result[["slm"]]
+cairo_pdf("Figure5E.pdf",width=10.0,height=5.5)
+print(psc_hindlimb_result[["plt"]]) 
+dev.off()
+
+
+
+#########################################################
+## SAMPLE P28 VOLUME PLOTS (WT + KO MTX)               ##
+#########################################################
+
+## Hippocampus ##
+hpresult<-myplotfunc("HP",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"),
+                       PltType="AgeGroupP28",PltTitle="Hippocampus (P28)")
+slm_hp <- hpresult[["slm"]]
+cairo_pdf("Figure8Atop.pdf",width=12.0,height=5.5)
+print(hpresult[["plt"]]) 
+dev.off()
+
+## Parietal Region ##
+prresult<-myplotfunc("PR",formula_rhs,GroupFilter=c("WT-Saline", "WT-MTX", "KO-Saline", "KO-MTX"),
+                       PltType="AgeGroupP28",PltTitle="Parietal Region (P28)")
+slm_pr <- prresult[["slm"]]
+cairo_pdf("Figure8Abottom.pdf",width=12.0,height=5.5)
+print(prresult[["plt"]]) 
+dev.off()
+
+################################################################################################
+## STRUCTUREWISE TREATMENT EFFECT IN WT MTX MICE                                              ##
+## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE                   ##
+## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
+################################################################################################
 
 
 ################################################################################################
