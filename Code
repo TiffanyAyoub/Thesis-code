@@ -810,25 +810,26 @@ for (p in 1:n_permutation) {
 ## SAVE RESULTS ##
 save(perm_results_df, file = "PERMUTATION_RESULTS_1000.RData")
 
-##################################################################################
-## FILL IN                   ##
-##################################################################################
+####################################################################################################
+## COMPARE OBSERVED GENOTYPE EFFECTS TO PERMUTATION DISTRIBUTIONS USING EMPIRICAL P-VALUES       ##
+## NORMALIZE ESTIMATES BY SEX AND AGE, COMPUTE MEDIANS, AND CALCULATE TWO-TAILED P-VALUES        ##
+## DATA SOURCES: PERMUTATION_RESULTS_1000.RData & ALLRES.RData                                   ##
+####################################################################################################
+
 
 ## LOAD: PERMUTATION_RESULTS_1000.RData ##
-## THIS DATA FRAME CONTAINS THE PERMUTED DATA FOR THE GENOTYPE EFFECT ##
+load("PERMUTATION_RESULTS_1000.RData")
 
-library(dplyr)
-
-# Normalize estimates for each age and sex
+## NORMALIZE ESTIMATES FOR EACH AGE AND SEX ## 
 perm_results_df <- perm_results_df %>%
   mutate(
-    # FEMALE: Normalize interaction by female baseline at each age
+    ## FEMALE ##
     f_estimates_14_p = (`F_genotype_flag_14.Estimate` / `age_factor14.Estimate`) * 100,
     f_estimates_28_p = (`F_genotype_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
     f_estimates_42_p = (`F_genotype_flag_42.Estimate` / `age_factor42.Estimate`) * 100,
     f_estimates_63_p = (`F_genotype_flag_63.Estimate` / `age_factor63.Estimate`) * 100,
     
-    # MALE: Compute new baseline first, then normalize
+    ## MALE: COMPUTE NEW BASELINE FIRST, THEN NORMALIZE ## 
     Male_WT_Saline_Estimate_14_p = `age_factor14:sex_flag.Estimate` + `age_factor14.Estimate`,
     Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
     Male_WT_Saline_Estimate_42_p = `age_factor42:sex_flag.Estimate` + `age_factor42.Estimate`,
@@ -840,7 +841,7 @@ perm_results_df <- perm_results_df %>%
     m_estimates_63_p = (`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63_p) * 100
   )
 
-# Compute median for each permutation
+## COMPUTE MEDIAN FOR EACH PERMUTATION ## 
 perm_medians <- perm_results_df %>%
   group_by(Permutation) %>%
   summarise(
@@ -855,37 +856,36 @@ perm_medians <- perm_results_df %>%
     Median_F_Gen_63_p = median(f_estimates_63_p, na.rm = TRUE)
   )
 
-# Print the median results
 print(perm_medians)
 
 ## LOAD: ALLRES.RData ## 
+load("ALLRES.RData")
 
-# baseline estimates for females 
+## BASELINE FOR FEMALES
 age_factor_14 <- allres$`age_factor14.Estimate`
 age_factor_28 <- allres$`age_factor28.Estimate`
 age_factor_42 <- allres$`age_factor42.Estimate`
 age_factor_63 <- allres$`age_factor63.Estimate`
 
-# Male baselines (WT+Saline) for each age
+## BASELINE FOR MALES ##  
 Male_WT_Saline_Estimate_14 <- age_factor_14 + allres$`age_factor14:sex_flag.Estimate`
 Male_WT_Saline_Estimate_28 <- age_factor_28 + allres$`age_factor28:sex_flag.Estimate`
 Male_WT_Saline_Estimate_42 <- age_factor_42 + allres$`age_factor42:sex_flag.Estimate`
 Male_WT_Saline_Estimate_63 <- age_factor_63 + allres$`age_factor63:sex_flag.Estimate`
 
-# Normalize estimates for each term
+## NORMALIZE ESTIMATES FOR EACH TERM ##
 
-#female first
+## FEMALES ##
 f_estimates_14 <- (allres$`F_genotype_flag_14.Estimate` / age_factor_14) * 100
 f_estimates_28 <- (allres$`F_genotype_flag_28.Estimate` / age_factor_28) * 100
 f_estimates_42 <- (allres$`F_genotype_flag_42.Estimate` / age_factor_42) * 100
 f_estimates_63 <- (allres$`F_genotype_flag_63.Estimate` / age_factor_63) * 100
 
-#now male
+## MALES ##
 m_estimates_14 <- (allres$`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimate_14) * 100
 m_estimates_28 <- (allres$`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
 m_estimates_42 <- (allres$`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42) * 100
 m_estimates_63 <- (allres$`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63) * 100
-
 
 observed_F_med_14 <- median(f_estimates_14)
 observed_F_med_28 <- median(f_estimates_28)
@@ -898,9 +898,7 @@ observed_M_med_42 <- median(m_estimates_42)
 observed_M_med_63 <- median(m_estimates_63)
 
 
-#### TESTING ####
-
-#two-tailed empirical p-value
+## STATISTICAL TESTING USING TWO-TAILED EMPERICAL P-VALUE ##
 
 ## FEMALES ##
 
@@ -962,13 +960,15 @@ mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
 mypval
 #0.4
 
-
 ########################################################################################
-## GENE
+## RUN LINEAR MIXED EFFECTS MODEL #2 FOR EACH STRUCTURE AND SAVE RESULTS ##
+## CODE USED TO GENERATE ALLRES_2.RData ##
 #########################################################################################
 
-## NOW LOOKING AT ALL 4 GROUPS AT P28 ##
+## LOAD FINAL_DATA_FRAME ##
+load("FINAL_DATA_FRAME.RData")
 
+## FLAGS ##
 age_factor <- as.character(FINAL_DATA_FRAME$Age)
 sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
 
@@ -1066,7 +1066,14 @@ for (i in 1:length(structure_list)){
 
 ## SAVE ALLRES_2.RData ##
 
-## LOAD IN ALLRES DATA FRAME##
+
+#################################################################################################################
+## STRUCTUREWISE TREATMENT EFFECT IN MTX MICE AT P28                                                           ##
+## THIS IS FOR FIGURE 7A TO COMPARE 1) WT MTX MICE TO WT SALINE 2) KO MTX TO KO SALINE (SPLIT BY SEX AT P28)   ##
+## USED TO CREATE THE BRAIN MAP IN FIGURE 7A                                                                   ##
+#################################################################################################################
+
+## LOAD IN ALLRES 2 DATA FRAME##
 load("/projects/tayoub/ALLRES_2.RData")
 
 allres_p <- p.adjust(c(allres$`F_MTX_WT_flag_28.Pr(>|t|)`, allres$`M_MTX_WT_flag_28.Pr(>|t|)`, 
@@ -1086,18 +1093,18 @@ allres$`F_MTX_KO_flag_28.Estimate`<- allres$`F_MTX_KO_flag_28.Estimate` * (allre
 
 #### NOW PERCENT CHANGE ####
 
-#For WT Female (using age_fatcor28 b/c females are basline)
+## FOR WT FEMALE ##
 F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
 
-#For WT Male 
+## FOR WT MALE ## 
 Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
 M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
 
-#For KO Female
+## FOR KO FEMALE ##
 F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
 F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
 
-#For KO Male
+## FOR KO MALE ##
 M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
 M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
 
@@ -1107,51 +1114,50 @@ sum(M_WT_MTX_28_pc != 0) #79
 sum(F_KO_MTX_28_pc != 0) #75
 sum(M_KO_MTX_28_pc != 0) #44
 
-########################################################################################
-## GENE
-#########################################################################################
 
-# CLEAR ENVIRONMENT AND RE-LOAD DATA FRAME #  
-## LOAD IN ALLRES DATA FRAME##
-load("/projects/tayoub/ALLRES_2.RData")
+######################################################################################
+## GENERATING TREATMENT EFFECT HISTOGRAM PLOTS                                      ##
+## THIS IS FOR FIGURE 7B TO COMPARE MTX-TREATED MICE TO SALINE-TREATED MICE AT P28  ##
+## COMPARING WT MTX TO WT SALINE & KO MTX TO KO SALINE (SEPARATED BY SEX)           ##
+######################################################################################
+  
+## LOAD IN ALLRES 2 DATA FRAME##
+load("ALLRES_2.RData")
 
-## MAKING HISTOGRAMS FOR TREATMENT EFFECT SEPARATED BY GENOTYE AND SEX ##
-#For WT Female (using age_fatcor28 b/c females are basline)
+## WT FEMALE ##
 F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
 
-#For WT Male 
+## WT MALE ## 
 Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
 M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
 
-#For KO Female
+## KO FEMALE ##
 F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
 F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
 
-#For KO Male
+## KO MALE ##
 M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
 M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
 
-# Create combined_data with Sex and Genotype
+## CREATE COMBINED_DATA WITH SEX AND GENOTYPE ## 
 combined_data <- data.frame(
   Estimate = c(F_WT_MTX_28_pc, M_WT_MTX_28_pc, F_KO_MTX_28_pc, M_KO_MTX_28_pc),
   Sex = rep(c("Female", "Male", "Female", "Male"), each = nrow(allres)),
   Genotype = rep(c("WT", "WT", "KO", "KO"), each = nrow(allres))
 )
 
-# Set custom fill colors for Sex
+## SET CUSTOM COLOURS ##
 sex_colors <- c("Female" = "#66CC99", "Male" = "#FF9966")
 
-# Set axis limits for consistent x-axis
+## SET ACIS LIMITS FOR CONSISTENT X-AXIS ## 
 x_min <- min(combined_data$Estimate, na.rm = TRUE)
 x_max <- max(combined_data$Estimate, na.rm = TRUE)
 
-# Ensure correct ordering of factor levels
+## ENSURE CORRECT ORDERING OF FACTOR LEVELS ## 
 combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
 combined_data$Genotype <- factor(combined_data$Genotype, levels = c("WT", "KO"))
 
-# Plot
-library(ggplot2)
-
+## PLOT ##
 ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
@@ -1180,8 +1186,8 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
 ## OUTPUT: PERMUTATION_RESULTS_TREATMENT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 7)    ##
 ###############################################################################################
 
-
 ## LOAD: FINAL_DATA_FRAME.RData ##
+load("FINAL_DATA_FRAME.RData")
 
 ## ENSURE GROUP IS FACTOR ##
 FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
@@ -1363,32 +1369,34 @@ for (p in 1:n_permutation) {
 ## SAVE RESULTS ##
 save(perm_results_df, file = "PERMUTATION_RESULTS_TREATMENT_1000.RData")
 
-###############################################################################################
-## 
-###############################################################################################
+####################################################################################################
+## COMPARE OBSERVED TREATMENT EFFECTS TO PERMUTATION DISTRIBUTIONS USING EMPIRICAL P-VALUES      ##
+## NORMALIZE ESTIMATES BY SEX AND AGE, COMPUTE MEDIANS, AND CALCULATE TWO-TAILED P-VALUES        ##
+## DATA SOURCES: PERMUTATION_TREATMENT_1000.RData & ALLRES_2.RData                               ##
+####################################################################################################
 
 ## LOAD IN TREATMENT PERMUTATION DATA FRAME ##
 load("PERMUTATION_RESULTS_TREATMENT_1000.RData")
 
 perm_results_df <- perm_results_df %>%
   mutate(
-    # WT FEMALE (Using age_factor28 because females are baseline)
+    ## WT FEMALE ##
     F_WT_MTX_28_p = (`F_MTX_WT_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
     
-    # WT MALE: Compute new baseline first, then normalize
+    ## WT MALE ##
     Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
     M_WT_MTX_28_p = (`M_MTX_WT_flag_28.Estimate` / Male_WT_Saline_Estimate_28_p) * 100,
     
-    # KO FEMALE: Compute new baseline first, then normalize
+    ## KO FEMALE ##
     F_KO_Saline_28_Estimate_p = `F_Saline_KO_flag_28.Estimate` + `age_factor28.Estimate`,
     F_KO_MTX_28_p = (`F_MTX_KO_flag_28.Estimate` / F_KO_Saline_28_Estimate_p) * 100,
     
-    # KO MALE: Compute new baseline first, then normalize
+    # KO MALE ##
     M_KO_Saline_28_Estimate_p = `M_Saline_KO_flag_28.Estimate` + Male_WT_Saline_Estimate_28_p,
     M_KO_MTX_28_p = (`M_MTX_KO_flag_28.Estimate` / M_KO_Saline_28_Estimate_p) * 100
   )
 
-# Compute median for each permutation
+## COMPUTE MEDIANS FOR PERMUTATIONS ##
 perm_medians <- perm_results_df %>%
   group_by(Permutation) %>%  
   summarise(
@@ -1398,24 +1406,23 @@ perm_medians <- perm_results_df %>%
     Median_M_KO_MTX = median(M_KO_MTX_28_p)
   )
 
-# Display result
 print(perm_medians)
 
-load("/projects/tayoub/ALLRES_2.RData")
+## LOAD ALLRES ##
+load("ALLRES_2.RData")
 
-#For WT Female (using age_fatcor28 b/c females are basline)
+## WT FEMALE ##
 F_WT_MTX_28 <- (allres$F_MTX_WT_flag_28.Estimate / allres$age_factor28.Estimate) * 100
 
-#For WT Male 
+## WT MALE ##
 Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
 M_WT_MTX_28 <- (allres$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28) * 100
 
-
-#For KO Female
+#KO FEMALE ##
 F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
 F_KO_MTX_28 <- (allres$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate) * 100
 
-#For KO Male
+## KO MALE ##
 M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
 M_KO_MTX_28 <- (allres$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate) * 100
 
@@ -1429,8 +1436,7 @@ print(observed_F_KO_MTX_median)
 print(observed_M_WT_MTX_median)
 print(observed_M_KO_MTX_median)
 
-
-##### TESTING #####
+## TESTING ##
 
 N <- length(perm_medians$Median_F_WT_MTX)
 j <- sum(observed_F_WT_MTX_median > perm_medians$Median_F_WT_MTX)
@@ -1457,7 +1463,11 @@ mypval
 #0
 
 
-######## TEST ###########
+####################################################################################################
+## STATISTICAL COMPARISON OF KO VS WT UNDER MTX AT P28 USING WILCOXON RANK-SUM TEST              ##
+## GROUPS COMPARED: FEMALE KO vs WT AND MALE KO vs WT                                            ##
+## OUTPUT: TWO-SIDED P-VALUES INDICATING SIGNIFICANT DISTRIBUTION DIFFERENCES                    ##
+####################################################################################################
 
 # Compare F KO vs F WT  
 wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28, F_KO_MTX_28, 
@@ -1475,23 +1485,48 @@ print(wilcox_male_MTX_comparison)
 # p-value = 6.635e-05 #
 # THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
+#################################################################################################################
+## STRUCTUREWISE GENOTYPE × TREATMENT INTERACTION EFFECTS AT P28                                               ##
+## FOR SUPPLEMENTARY FIGURE 1: SIGNIFICANT EFFECTS ONLY (P < 0.05), SPLIT BY SEX                               ##
+## USED TO CREATE BRAIN MAP FOR SUPPLEMENTARY FIGURE                                                           ##
+#################################################################################################################
+
+## LOAD DATA ##
+load("ALLRES.RData")
+
+## SET ESTIMATES TO ZERO IF P-VALUE IS LESS THAN 0.05 ##
+allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` * (allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05)
+allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` * (allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05)
+
+## PERCENT CHANGE ##
+
+## FEMALE ##
+F_28_pc <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$age_factor28.Estimate * 100
+
+## MALE ##
+Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
+M_28_pc <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
+
+## CHECKING NUMBER OF STRUCTURES ##
+sum(F_28_pc != 0) ## 19 structures ##
+sum(M_28_pc != 0) ## 5 ##
+
 ######################################################################################################
 ## GENERATE HISTOGRAM TO GENERATE GENOTYPE × TREATMENT INTERACTION EFFECTS                          ##
 ## OUTPUT: PERMUTATION_RESULTS_INT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 8B)                ##
 ######################################################################################################
 
 ## LOAD ALLRES ##
-load("/projects/tayoub/ALLRES.RData")
+load("ALLRES.RData")
 
 # NORMALIZE ESTIMATES #
 
-# FEMALE IS BASELINE (age_factor28)
+## FEMALE INTERACTION EFFECT P28 ##
 F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
 
-# MALE IS NOT BASELINE SO YOU NEED TO ADD SEX (age_factor28:sex_flag)
+## FEMALE INTERACTION EFFECT P28 ##
 Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
 M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
-
 
 # CREATE DATA FRAMES FOR EACH INTERACTION ESTIMATE (ADDING COLUMNS FOR SEX AND INTERACTION)
 m_data_INT <- data.frame(Estimate = M_INT_28_pc, Sex = "Male", Interaction = "M_treatment_flag_28:M_genotype_flag_28")
@@ -1514,6 +1549,7 @@ x_max <- max(combined_data$Estimate, na.rm = TRUE)
 ## MAKE FEMALE APPEAR FIRST FOR PLOTTING ##
 combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
 
+## PLOT ##
 ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
@@ -1545,6 +1581,7 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
 ######################################################################################################
 
 ## LOAD: FINAL_DATA_FRAME.RData ##
+load("FINAL_DATA_FRAME.RData")
 
 ## ENSURE GROUP IS FACTOR ##
 FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
@@ -1698,23 +1735,29 @@ for (p in 1:n_permutation) {
 }
 
 ## SAVE RESULTS ##
-save(perm_results_df_2, file = "/projects/tayoub/PERMUTATION_RESULTS_INT_1000.RData")
+save(perm_results_df_2, file = "PERMUTATION_RESULTS_INT_1000.RData")
+
+####################################################################################################
+## COMPARE OBSERVED GENOTYPE × TREATMENT INTERACTIONS TO PERMUTATION DISTRIBUTIONS AT P28        ##
+## NORMALIZE INTERACTION ESTIMATES BY SEX, COMPUTE MEDIANS, AND CALCULATE EMPIRICAL P-VALUES     ##
+## DATA SOURCES: PERMUTATION_RESULTS_INT_1000.RData & ALLRES.RData                               ##
+####################################################################################################
 
 
-load("/projects/tayoub/PERMUTATION_RESULTS_INT_1000.RData")
+## LOAD PERMUTATION_RESULTS_INT_1000 ##
+load("PERMUTATION_RESULTS_INT_1000.RData")
 
-# Compute values
 perm_results_df_2 <- perm_results_df_2 %>%
   mutate(
-    # FEMALE: Normalize interaction by female baseline
+    ## FEMALE ##
     F_INT_28_pc_p = (`F_treatment_flag_28:F_genotype_flag_28.Estimate` / `age_factor28.Estimate`) * 100,
     
-    # MALE: Compute new baseline first, then normalize
+    ## MALE ##
     Male_WT_Saline_Estimate_28_p = `age_factor28:sex_flag.Estimate` + `age_factor28.Estimate`,
     M_INT_28_pc_p = (`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28_p) * 100
   )
 
-# Compute median for each permutation
+## COMPUTE MEDIANS FOR EACH PERMUTATION ##
 perm_medians <- perm_results_df_2 %>%
   group_by(Permutation) %>%  
   summarise(
@@ -1722,38 +1765,30 @@ perm_medians <- perm_results_df_2 %>%
     Median_F_INT_28_pc_p = median(F_INT_28_pc_p, na.rm = TRUE)
   )
 
-# Display result
 print(perm_medians)
 
-### NOW FOR ORIGINAL DATA ###
+## LOAD ALLRES TO COMPUTE % DIFFERENCES ##
+load("ALLRES.RData")
 
-load("/projects/tayoub/ALLRES.RData")
-
-# FEMALE IS BASELINE (age_factor28)
+## FEMALE INTERACTION P28 ##
 F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
 
-# MALE IS NOT BASELINE SO YOU NEED TO ADD SEX (age_factor28:sex_flag)
+## MALE INTERACTION P28 ##
 Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
 M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
-
 
 observed_F_median <- median(F_INT_28_pc)
 observed_M_median <- median(M_INT_28_pc)
 
 #### TESTING ####
 
-#two-tailed empirical p-value
+## TWO-TAILED EMPERICAL P-VALUE ##
 
-#This stores the total number of permuted medians in N
 N <- length(perm_medians$Median_F_INT_28_pc_p)
-#This counts how many permuted medians are less than the observed median
-#j represents how extreme the observed median is compared to the permuted values
 j <- sum(observed_F_median> perm_medians$Median_F_INT_28_pc_p)
-#This calculates the two-tailed empirical p-value based on the count j
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
 mypval
 #0.454
-
 
 N <- length(perm_medians$Median_M_INT_28_pc_p)
 j <- sum(observed_M_median> perm_medians$Median_M_INT_28_pc_p)
@@ -1761,8 +1796,12 @@ mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
 mypval
 #0.512
 
+####################################################################################################
+## STATISTICAL COMPARISON OF GENOTYPE × TREATMENT INTERACTION EFFECTS AT P28 USING WILCOX TEST   ##
+## GROUPS COMPARED: FEMALE INTERACTION vs MALE INTERACTION (KO × MTX)                            ##
+## OUTPUT: TWO-SIDED P-VALUE INDICATING HIGHLY SIGNIFICANT DIFFERENCE BETWEEN DISTRIBUTIONS      ##
+####################################################################################################
 
-## COMPARING THE TWO HISTOGRAMS ##
 
 wilcox_interaction_comparison <- wilcox.test(F_INT_28_pc, M_INT_28_pc, 
                                              alternative = "two.sided")
@@ -1771,11 +1810,12 @@ print(wilcox_interaction_comparison)
 # p-value = 1.585e-15 #
 
 
-######################################
-
-## LOOKING AT WEIGHT COMPARISONS ##
+####################################################################################################
+## MOUSE WEIGHT TRAJECTORY PLOT                                                                   ##
+####################################################################################################
 
 ## LOAD FINAL_WEIGHT.CSV ##
+load("FINAL_WEIGHT.CSV")
 
 ## PLOTTING THE WEIGHTS CURVE -- KEEPING SEX SEPARATE ##
 
@@ -1799,7 +1839,6 @@ weightc <- FINAL_WEIGHT %>%
 weightc$Group <- factor(weightc$Group, levels = c("WT+Saline", "WT+MTX", "KO+Saline", "KO+MTX"))
 
 ## PLOTTING ##
-
 ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
   geom_line(size = 2) +
   geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = Group), 
@@ -1829,8 +1868,12 @@ ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
     panel.spacing = unit(2, "lines")
   )
 
+####################################################################################################
+## MOUSE WEIGHT STATISTICAL CALCULATIONS                                                          ##
+####################################################################################################
 
 ###### MAKING FEMALE WT SALINE MICE BASELINE ######
+
 # SET WT SALINE BASELINE 
 FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
 
@@ -1840,101 +1883,71 @@ FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
 ## MAKING FEMALE BASELINE ##
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
 
-# Fit the mixed-effects model
+## LINEAR MODEL ##
 Linear_mixed_model <- lmer(
   Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
   data = FINAL_WEIGHT
 )
-
-# View the model summary
 summary(Linear_mixed_model)
 
 ## WT MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE FEMALE MICE FROM P22 TO P27 ##
 
 ###### MAKING FEMALE KO SALINE MICE BASELINE ######
-# Set baseline for Group (e.g., KO+Saline)
 FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
 
-# Convert Age to a factor (if it's not already)
+## CONVERT AGE TO FACTOR ##
 FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
 
-#Set female to 0
+## MAKING FEMALE BASELINE ##
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
 
-
-# Fit the mixed-effects model
+## LINEAR MODEL ##
 Linear_mixed_model <- lmer(
   Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
   data = FINAL_WEIGHT
 )
 
-# View the model summary
 summary(Linear_mixed_model)
 
 ## KO MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE FEMALE MICE FROM P22 TO P35 ##
 
 ###### MAKING MALE KO SALINE MICE BASELINE ######
-# Set baseline for Group (e.g., KO+Saline)
+
 FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
 
-# Convert Age to a factor (if it's not already)
+## CONVERT AGE TO FACTOR ##
 FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
 
-# Set Male as the baseline
+## MAKING MALE BASELINE ##
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
 
-# Fit the mixed-effects model
+## LINEAR MODEL ##
 Linear_mixed_model <- lmer(
   Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
   data = FINAL_WEIGHT
 )
 
-# View the model summary
 summary(Linear_mixed_model)
 
 ## KO MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE MALE MICE FROM P22 TO P49 ##
 
 ###### MAKING MALE WT SALINE MICE BASELINE ######
-# Set baseline for Group (e.g., WT+Saline)
 FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
 
-# Convert Age to a factor (if it's not already)
+## CONVERT AGE TO FACTOR ##
 FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
 
-# Set Male as the baseline
+## MAKING MALE BASELINE ##
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
 
-# Fit the mixed-effects model
+## LINEAR MODEL ##
 Linear_mixed_model <- lmer(
   Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
   data = FINAL_WEIGHT
 )
 
-# View the model summary
 summary(Linear_mixed_model)
 
 ## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
 
-
-###############################################################
-
-## LOAD DATA ##
-load("/projects/tayoub/ALLRES.RData")
-
-## SET ESTIMATES TO ZERO IF P-VALUE IS LESS THAN 0.05 ##
-allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` * (allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05)
-allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` * (allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05)
-
-## PERCENT CHANGE ##
-
-## FEMALE ##
-F_28_pc <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$age_factor28.Estimate * 100
-
-## MALE ##
-Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_28_pc <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
-
-## CHECKING NUMBER OF STRUCTURES ##
-sum(F_28_pc != 0) ## 19 structures ##
-sum(M_28_pc != 0) ## 5 ##
 
