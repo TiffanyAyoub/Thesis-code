@@ -361,6 +361,7 @@ dev.off()
 ## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE                   ##
 ## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
 ################################################################################################
+# Load FINAL_DATA_FRAME #
 
 #### LINEAR MODEL ####
 age_factor <- as.character(FINAL_DATA_FRAME$Age)
@@ -392,9 +393,7 @@ sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$H
 FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
   mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
 
-
-
-# make empty data frame
+## MAKE EMPTY DATA FRAME ##
 struct <- dt.struc$Structure
 form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
             age_factor:z_litter_size +
@@ -415,14 +414,12 @@ form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag +
 clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
 structure_list <- dt.struc$Structure
 
-
 slm <- summary(clm)
 allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
 allres <- data.frame(Structure=structure_list)
 allres[,allcols] <- NA
 
-
-# loop through all structures and run lmer
+## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
 for (i in 1:length(structure_list)){
   cstruct <- as.character(allres$Structure[i])
   form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
@@ -740,7 +737,8 @@ for (p in 1:n_permutation) {
   ## SHUFFLE GENOTYPE ##
   df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
   df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
-  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)[, c("ID", "Genotype")]
+  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+  df_shuffle <- df_shuffle[c("ID", "Genotype")]
   
   ## MERGE BACK SHUFFLED GENOTYPE ##
   df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
@@ -1019,14 +1017,12 @@ form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag +
 clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
 structure_list <- dt.struc$Structure
 
-
 slm <- summary(clm)
 allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
 allres <- data.frame(Structure=structure_list)
 allres[,allcols] <- NA
 
-
-# loop through all structures and run lmer
+## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
 for (i in 1:length(structure_list)){
   cstruct <- as.character(allres$Structure[i])
   form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
@@ -1049,6 +1045,8 @@ for (i in 1:length(structure_list)){
   clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
   slm <- summary(clm)
   allres[i,allcols]<-as.vector(slm$coefficients)}
+
+## SAVE ALLRES_2.RData ##
 
 ## LOAD IN ALLRES DATA FRAME##
 load("/projects/tayoub/ALLRES_2.RData")
@@ -1158,6 +1156,189 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
 
 ###############################################################
 # PERMUTATION TESTING FOR TREATMENT # 
+
+## LOAD: FINAL_DATA_FRAME.RData ##
+
+## ENSURE GROUP IS FACTOR ##
+FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
+
+## EXTRACT 183 BRAIN STRUCTURES ## 
+structure_list <- dt.struc$Structure
+
+## LINEAR MODEL 2 ##
+age_factor <- as.character(FINAL_DATA_FRAME$Age)
+sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+
+M_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
+
+M_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+
+M_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+
+M_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+M_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+F_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+F_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+
+## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE) ##
+mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+
+## CREATE Z-SCORE FOR LITTER SIZE ##
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+
+## MAKE EMPTY DATA FRAME ##
+struct <- dt.struc$Structure
+form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_KO_flag_14 + 
+            F_KO_flag_14 + 
+            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
+            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
+            M_Saline_KO_flag_28 + 
+            F_Saline_KO_flag_28 + 
+            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
+            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
+            M_Saline_KO_flag_42 + 
+            F_Saline_KO_flag_42 + 
+            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
+            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
+            M_Saline_KO_flag_63 + 
+            F_Saline_KO_flag_63 + 
+            (1|ID) + (1|Home_cage)")
+clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
+structure_list <- dt.struc$Structure
+
+## SET UP EMPTY RESULTS DATA FRAME ##
+slm <- summary(clm)
+allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+allres <- data.frame(Structure=structure_list)
+allres[,allcols] <- NA
+allres$Permutation <- NA
+
+## PERMUTATION PARAMETERS ##
+n_permutation <- 1000
+perm_results_df <- data.frame() 
+
+## EXTRACTING ID & TREATMENT ## 
+df_ID_treat <- distinct(FINAL_DATA_FRAME, ID, Treatment, Sex, .keep_all = FALSE)
+
+## REMOVE TREATMENT FOR PERMUTATION ##
+df_no_treat <- select(FINAL_DATA_FRAME, -Treatment)
+
+## BEGIN PERMUTATION LOOP ## 
+set.seed(123)
+for (p in 1:n_permutation) {
+  
+  df_dummy <- allres
+  
+  ## SPLIT BY SEX ##
+  df_ID_F <- subset(df_ID_treat, Sex=="Female")
+  df_ID_M <- subset(df_ID_treat, Sex=="Male")
+  
+  ## SHUFFLE TREATMENT ##
+  df_shuffle_F <- transform(df_ID_F, Treatment = sample(df_ID_F$Treatment))
+  df_shuffle_M <- transform(df_ID_M, Treatment = sample(df_ID_M$Treatment))
+  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+  df_shuffle <- df_shuffle[c("ID", "Treatment")]
+  
+  ## MERGE BACK SHUFFLED TREATMENT ##
+  df_perm <- left_join(df_no_treat, df_shuffle, by = "ID")
+  
+  ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ##
+  age_factor <- as.character(df_perm$Age)
+  sex_flag <- (df_perm$Sex == "Male") * 1
+  
+  M_KO_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
+  M_WT_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
+  F_KO_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
+  F_WT_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
+  
+  M_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+  M_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+  F_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+  F_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+  M_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+  M_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+  F_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+  F_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+  
+  M_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+  M_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+  F_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+  F_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+  M_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+  M_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+  F_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+  F_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+  
+  M_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+  M_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+  F_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+  F_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+  M_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+  M_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+  F_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+  F_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+  
+  ## LOOP THROUGH ALL STRUCTURES ##
+  for (j in 1:length(structure_list)) {
+    cstruct <- as.character(df_dummy$Structure[j])
+    
+    form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_KO_flag_14 + 
+            F_KO_flag_14 + 
+            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
+            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
+            M_Saline_KO_flag_28 + 
+            F_Saline_KO_flag_28 + 
+            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
+            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
+            M_Saline_KO_flag_42 + 
+            F_Saline_KO_flag_42 + 
+            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
+            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
+            M_Saline_KO_flag_63 + 
+            F_Saline_KO_flag_63 + 
+            (1|ID) + (1|Home_cage)")
+    
+    clm_perm <- lmer(as.formula(form), data = df_perm)
+    
+    slm <- summary(clm_perm)
+    df_dummy[j,allcols]<-as.vector(slm$coefficients)
+    df_dummy$Permutation <- p
+  }
+  
+  ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
+  perm_results_df <- rbind(perm_results_df, df_dummy)
+}
+
+## SAVE RESULTS ##
+save(perm_results_df, file = "PERMUTATION_RESULTS_TREATMENT_1000.RData")
+
 
 ## LOAD IN TREATMENT PERMUTATION DATA FRAME ##
 load("/projects/tayoub/PERMUTATION_RESULTS_TREATMENT_1000.RData")
@@ -1329,6 +1510,164 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
 
 
 ## PERMUTATION TESTING FOR INTERACTION HISTOGRAMS ##
+
+## LOAD: FINAL_DATA_FRAME.RData ##
+
+## ENSURE GROUP IS FACTOR ##
+FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
+
+## EXTRACT 183 BRAIN STRUCTURES ## 
+structure_list <- dt.struc$Structure
+
+## DEFINE AGE AND SEX FLAGS ##
+age_factor <- as.character(FINAL_DATA_FRAME$Age)
+sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+
+## TREATMENT FLAGS FOR EACH TIME POINT ##
+M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+## GENOTYPE FLAGS FOR EACH TIME POINT ##
+M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
+F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
+M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE) ##
+mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+
+## CREATE Z-SCORE FOR LITTER SIZE ##
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+
+## FIT BASE MODEL FOR COEFFICIENT STRUCTURE ##
+form <- glue("`{structure_list[1]}` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)")
+clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
+
+## SET UP EMPTY RESULTS DATA FRAME ##
+slm <- summary(clm)
+allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+allres <- data.frame(Structure = structure_list)
+allres[, allcols] <- NA
+allres$Permutation <- NA
+
+## PERMUTATION PARAMETERS ##
+n_permutation <- 1000
+perm_results_df_2 <- data.frame()  
+
+## FILTER FOR ONLY MTX MICE ## 
+FINAL_DATA_FRAME_MTX <- FINAL_DATA_FRAME %>%
+  filter(Treatment == "MTX")
+
+## FILTER FOR ONLY SALINE MICE ## 
+FINAL_DATA_FRAME_Saline <- FINAL_DATA_FRAME %>%
+  filter(Treatment == "Saline")
+
+## EXTRACTING ID & GENOTYPE ## 
+df_ID_gen <- distinct(FINAL_DATA_FRAME_MTX, ID, Genotype, Sex, .keep_all = FALSE)
+
+## REMOVE GENOTYPE FROM MAIN DATA FRAME ##
+df_no_gen <- select(FINAL_DATA_FRAME_MTX, -Genotype)
+
+## LOOP THROUGH PERMUTATIONS BELOW 
+set.seed(123)
+for (p in 1:n_permutation) {
+  
+  df_dummy <- allres
+  
+  df_ID_F <- subset(df_ID_gen, Sex=="Female")
+  df_ID_M <- subset(df_ID_gen, Sex=="Male")
+  
+  ## SHUFFLE GENOTYOPE BY ID (ENSURE SAME ID GETS SAME GENOTYPE ACROSS TIMEPOINTS) 
+  df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
+  df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
+  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+  df_shuffle <- df_shuffle[c("ID", "Genotype")]
+  
+  ## MERGE BACK SHUFFLED TREATMENT ##
+  df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
+  df_perm_2 <- rbind(df_perm, FINAL_DATA_FRAME_Saline)
+  
+  ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ## 
+  df_perm_2$age_factor <- as.character(df_perm_2$Age)
+  df_perm_2$sex_flag <- (df_perm_2$Sex == "Male") * 1
+  
+  df_perm_2$M_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
+  df_perm_2$F_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
+  df_perm_2$M_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
+  df_perm_2$F_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
+  df_perm_2$M_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
+  df_perm_2$F_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
+  
+  df_perm_2$M_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 14)
+  df_perm_2$F_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 14)
+  df_perm_2$M_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
+  df_perm_2$F_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
+  df_perm_2$M_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
+  df_perm_2$F_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
+  df_perm_2$M_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
+  df_perm_2$F_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
+  
+  ## LOOP THROUGH ALL STRUCTURES ##
+  for (j in 1:length(structure_list)) {
+    cstruct <- as.character(df_dummy$Structure[j])
+    
+    form <- glue("`{cstruct}` ~ -1 + factor(Age) + age_factor:sex_flag + 
+                  age_factor:z_litter_size +
+                  M_treatment_flag_28 + F_treatment_flag_28 +
+                  M_treatment_flag_42 + F_treatment_flag_42 + 
+                  M_treatment_flag_63 + F_treatment_flag_63 + 
+                  M_genotype_flag_14 + F_genotype_flag_14 +
+                  M_genotype_flag_28 + F_genotype_flag_28 +
+                  M_genotype_flag_42 + F_genotype_flag_42 + 
+                  M_genotype_flag_63 + F_genotype_flag_63 +
+                  M_treatment_flag_28:M_genotype_flag_28 +
+                  F_treatment_flag_28:F_genotype_flag_28 +
+                  M_treatment_flag_42:M_genotype_flag_42 +
+                  F_treatment_flag_42:F_genotype_flag_42 +
+                  M_treatment_flag_63:M_genotype_flag_63 +
+                  F_treatment_flag_63:F_genotype_flag_63 +
+                  (1|ID) + (1|Home_cage)")
+    
+    clm_perm <- lmer(as.formula(form), data = df_perm_2)
+    
+    slm <- summary(clm_perm)
+    df_dummy[j,allcols]<-as.vector(slm$coefficients)
+    df_dummy$Permutation <- p
+  }
+  
+  ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
+  perm_results_df_2 <- rbind(perm_results_df_2, df_dummy)
+}
+
+## SAVE RESULTS ##
+save(perm_results_df_2, file = "/projects/tayoub/PERMUTATION_RESULTS_INT_1000.RData")
+
+
 load("/projects/tayoub/PERMUTATION_RESULTS_INT_1000.RData")
 
 # Compute values
