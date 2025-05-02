@@ -356,18 +356,19 @@ cairo_pdf("Figure8Abottom.pdf",width=12.0,height=5.5)
 print(prresult[["plt"]]) 
 dev.off()
 
-################################################################################################
-## STRUCTUREWISE TREATMENT EFFECT IN WT MTX MICE                                              ##
-## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE                   ##
-## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
-################################################################################################
-# Load FINAL_DATA_FRAME #
+#########################################################################
+## RUN LINEAR MIXED EFFECTS MODELS FOR EACH STRUCTURE AND SAVE RESULTS ##
+## CODE USED TO GENERATE ALLRES.RData ##
+#########################################################################
 
-#### LINEAR MODEL ####
+## Load FINAL_DATA_FRAME ##
+load("FINAL_DATA_FRAME.RData")
+
+## LINEAR MODEL ##
 age_factor <- as.character(FINAL_DATA_FRAME$Age)
 sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
 
-# Treatment flags for each time point
+## TREATMENT FLAGS ##
 M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
 F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
 M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
@@ -375,7 +376,7 @@ F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME
 M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
 F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
 
-# Genotype flags for each time point
+## GENOTYPE FLAGS ##
 M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
 F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
 M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
@@ -443,12 +444,17 @@ for (i in 1:length(structure_list)){
   slm <- summary(clm)
   allres[i,allcols]<-as.vector(slm$coefficients)}
 
-# Save ALLRES.RData #
+## SAVE ALLRES DATA ## 
+save(allres, file = "ALLRES.RData")
 
+################################################################################################
+## STRUCTUREWISE TREATMENT EFFECT IN WT MTX MICE                                              ##
+## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE                   ##
+## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
 ################################################################################################
 
 ## LOAD: ALLRES.RData ## 
-## RAN THE MIXED-EFFECTS MODEL FOR EACH BRAIN STRUCTURE AND STORED ALL THE MODEL OUTPUTS IN ALLRES ##
+load("ALLRES.RData")
 
 ## RUN FDR ##
 allres_p <- p.adjust(c(
@@ -498,11 +504,14 @@ sum(M_WT_MTX_42_pc != 0) #8
 sum(F_WT_MTX_63_pc != 0) #0
 sum(M_WT_MTX_63_pc != 0) #0
 
-
-## CHECKING FOR GENOTYPE EFFECT ##
-## THIS IS FOR FIGURE 6A TO COMPARE IL6KO SALINE MICE TO WT SALINE MICE TO CREATE THE BRAIN MAP ##
+#############################################################################################
+## STRUCTUREWISE GENOTYPE EFFECT IN KO SALINE MICE                                         ##
+## THIS IS FOR FIGURE 6A TO COMPARE KO SALINE MICE (P14-P63) TO WT SALINE MICE             ##
+## USED TO CREATE THE BRAIN MAP IN FIGURE 6A                                               ##
+#############################################################################################
 
 ## LOAD: ALLRES.RData ## 
+load("ALLRES.RData")
 
 ## FDR ##
 allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
@@ -567,13 +576,13 @@ sum(M_KO_28_pc != 0) #0
 sum(M_KO_42_pc != 0) #0
 sum(M_KO_63_pc != 0) #0
 
-#####################################################################################
-
-## MAKING HISTOGRAMS ##
-
-## MAKING HISTOGRAM FOR GENOTYPE EFFECT ##
+##################################################################################
+## GENERATING GENOTYPE EFFECT HISTOGRAM PLOTS                                   ##
+## THIS IS FOR FIGURE 6B TO COMPARE KO SALINE MICE (P14-P63) TO WT SALINE MICE  ##
+##################################################################################
 
 ## LOAD: ALLRES.RData ## 
+load("ALLRES.RData")
 
 ## BASELINE ESTIMATES FOR FEMALES ## 
 age_factor_14 <- allres$`age_factor14.Estimate`
@@ -600,9 +609,6 @@ m_estimates_14 <- (allres$`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimat
 m_estimates_28 <- (allres$`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
 m_estimates_42 <- (allres$`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42) * 100
 m_estimates_63 <- (allres$`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63) * 100
-
-library(ggplot2)
-library(gridExtra)
 
 # Combine female and male data with Genotype labels and Sex column
 f_data <- data.frame(
@@ -649,8 +655,14 @@ ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
   ) +
   facet_grid(Sex ~ Genotype, scales = "free_y")
 
-##################################################################################
+########################################################################################
+## GENERATE 1000 PERMUTATIONS TO TEST GENOTYPE EFFECTS                                ##
+## THIS SCRIPT SHUFFLES GENOTYPE WITHIN SEX AND RE-RUNS MODELS FOR EACH STRUCTURE     ##
+## OUTPUT: PERMUTATION_RESULTS_1000.RData FOR STATISTICAL COMPARISON (FIGURE 6)       ##
+#########################################################################################
+
 ## LOAD: FINAL_DATA_FRAME.RData ##
+load("FINAL_DATA_FRAME.RData")
 
 ## ENSURE GROUP IS FACTOR ##
 FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
@@ -798,6 +810,9 @@ for (p in 1:n_permutation) {
 ## SAVE RESULTS ##
 save(perm_results_df, file = "PERMUTATION_RESULTS_1000.RData")
 
+##################################################################################
+## FILL IN                   ##
+##################################################################################
 
 ## LOAD: PERMUTATION_RESULTS_1000.RData ##
 ## THIS DATA FRAME CONTAINS THE PERMUTED DATA FOR THE GENOTYPE EFFECT ##
@@ -948,7 +963,10 @@ mypval
 #0.4
 
 
-#########################################################
+########################################################################################
+## GENE
+#########################################################################################
+
 ## NOW LOOKING AT ALL 4 GROUPS AT P28 ##
 
 age_factor <- as.character(FINAL_DATA_FRAME$Age)
@@ -1089,7 +1107,9 @@ sum(M_WT_MTX_28_pc != 0) #79
 sum(F_KO_MTX_28_pc != 0) #75
 sum(M_KO_MTX_28_pc != 0) #44
 
-#########################################################
+########################################################################################
+## GENE
+#########################################################################################
 
 # CLEAR ENVIRONMENT AND RE-LOAD DATA FRAME #  
 ## LOAD IN ALLRES DATA FRAME##
@@ -1154,8 +1174,12 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   ) +
   facet_grid(Genotype ~ Sex, scales = "free_y")
 
-###############################################################
-# PERMUTATION TESTING FOR TREATMENT # 
+###############################################################################################
+## GENERATE 1000 PERMUTATIONS TO TEST TREATMENT EFFECTS                                      ##
+## THIS SCRIPT SHUFFLES TREATMENT WITHIN SEX AND RE-RUNS MODELS FOR EACH STRUCTURE           ##
+## OUTPUT: PERMUTATION_RESULTS_TREATMENT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 7)    ##
+###############################################################################################
+
 
 ## LOAD: FINAL_DATA_FRAME.RData ##
 
@@ -1339,9 +1363,12 @@ for (p in 1:n_permutation) {
 ## SAVE RESULTS ##
 save(perm_results_df, file = "PERMUTATION_RESULTS_TREATMENT_1000.RData")
 
+###############################################################################################
+## 
+###############################################################################################
 
 ## LOAD IN TREATMENT PERMUTATION DATA FRAME ##
-load("/projects/tayoub/PERMUTATION_RESULTS_TREATMENT_1000.RData")
+load("PERMUTATION_RESULTS_TREATMENT_1000.RData")
 
 perm_results_df <- perm_results_df %>%
   mutate(
@@ -1448,10 +1475,12 @@ print(wilcox_male_MTX_comparison)
 # p-value = 6.635e-05 #
 # THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
-############################################################
-## INTERACTION EFFECT HISTOGRAMS ##
+######################################################################################################
+## GENERATE HISTOGRAM TO GENERATE GENOTYPE × TREATMENT INTERACTION EFFECTS                          ##
+## OUTPUT: PERMUTATION_RESULTS_INT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 8B)                ##
+######################################################################################################
 
-## LOAD DATA ##
+## LOAD ALLRES ##
 load("/projects/tayoub/ALLRES.RData")
 
 # NORMALIZE ESTIMATES #
@@ -1509,7 +1538,11 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   facet_wrap(~ Interaction, ncol = 2)
 
 
-## PERMUTATION TESTING FOR INTERACTION HISTOGRAMS ##
+######################################################################################################
+## GENERATE 1000 PERMUTATIONS TO TEST GENOTYPE × TREATMENT INTERACTION EFFECTS                     ##
+## THIS SCRIPT SHUFFLES GENOTYPE WITHIN METHOTREXATE-TREATED MICE (BY SEX) AND RE-RUNS MODELS      ##
+## OUTPUT: PERMUTATION_RESULTS_INT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 8)                ##
+######################################################################################################
 
 ## LOAD: FINAL_DATA_FRAME.RData ##
 
