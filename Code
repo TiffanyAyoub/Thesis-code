@@ -362,10 +362,93 @@ dev.off()
 ## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
 ################################################################################################
 
+#### LINEAR MODEL ####
+age_factor <- as.character(FINAL_DATA_FRAME$Age)
+sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+
+# Treatment flags for each time point
+M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+# Genotype flags for each time point
+M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
+F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
+M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
+F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
+M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
+F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
+M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
+F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+
+## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE TO AVOID COUNTING THE SAME CAGE MULTIPLE TIMES)
+mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+
+## CREATE Z-SCORE FOR LITTER SIZE TO STANDARDIZE IT ##
+FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
+  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
+
+
+
+# make empty data frame
+struct <- dt.struc$Structure
+form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)")
+clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
+structure_list <- dt.struc$Structure
+
+
+slm <- summary(clm)
+allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+allres <- data.frame(Structure=structure_list)
+allres[,allcols] <- NA
+
+
+# loop through all structures and run lmer
+for (i in 1:length(structure_list)){
+  cstruct <- as.character(allres$Structure[i])
+  form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
+            age_factor:z_litter_size +
+            M_treatment_flag_28 + F_treatment_flag_28 +
+            M_treatment_flag_42 + F_treatment_flag_42 + 
+            M_treatment_flag_63 + F_treatment_flag_63 + 
+            M_genotype_flag_14 + F_genotype_flag_14 +
+            M_genotype_flag_28 + F_genotype_flag_28 +
+            M_genotype_flag_42 + F_genotype_flag_42 + 
+            M_genotype_flag_63 + F_genotype_flag_63 +
+            M_treatment_flag_28:M_genotype_flag_28 +
+            F_treatment_flag_28:F_genotype_flag_28 +
+            M_treatment_flag_42:M_genotype_flag_42 +
+            F_treatment_flag_42:F_genotype_flag_42 +
+            M_treatment_flag_63:M_genotype_flag_63 +
+            F_treatment_flag_63:F_genotype_flag_63 +
+            (1|ID) + (1|Home_cage)")
+  
+  clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
+  slm <- summary(clm)
+  allres[i,allcols]<-as.vector(slm$coefficients)}
+
+# Save ALLRES.RData #
 
 ################################################################################################
-## CHECKING FOR TREATMENT EFFECT IN WT MTX MICE ##
-## THIS IS FOR FIGURE 5A TO COMPARE MTX WT MICE (P28-P63) TO WT SALINE MICE TO CREATE THE BRAIN MAP ##
 
 ## LOAD: ALLRES.RData ## 
 ## RAN THE MIXED-EFFECTS MODEL FOR EACH BRAIN STRUCTURE AND STORED ALL THE MODEL OUTPUTS IN ALLRES ##
