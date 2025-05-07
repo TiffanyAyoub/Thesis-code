@@ -6,6 +6,7 @@
 #########################################################
 
 library(tidyverse)
+library(glue)
 library(lme4)
 library(lmerTest)
 library(ggplot2)
@@ -361,91 +362,28 @@ dev.off()
 ## CODE USED TO GENERATE ALLRES.RData ##
 #########################################################################
 
-## Load FINAL_DATA_FRAME ##
-load("FINAL_DATA_FRAME.RData")
+if (file.exists("ALLRES.RData")){
+    load("ALLRES.RData")
+} else {
+    ## GENERATE TEMPLATE OUTPUT FROM LMER
+    cform <- as.formula( paste0("GM"," ~ ",formula_rhs) )  
+    clm <- lmer(cform, data = df)
+    slm <- summary(clm)
+    allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+    structure_list<-dt.struc$Structure
+    allres <- data.frame(Structure=structure_list)
+    allres[,allcols] <- NA
+    ## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
+    for (i in 1:length(structure_list)){
+      cstruct <- as.character(allres$Structure[i])
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
+      clm <- lmer(cform, data = df)
+      slm <- summary(clm)
+      allres[i,allcols]<-as.vector(slm$coefficients)
+    ## SAVE ALLRES DATA ## 
+    save(allres, file = "ALLRES.RData")}
 
-## LINEAR MODEL ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
-
-## TREATMENT FLAGS ##
-M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## GENOTYPE FLAGS ##
-M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
-F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
-M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE TO AVOID COUNTING THE SAME CAGE MULTIPLE TIMES)
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-
-## CREATE Z-SCORE FOR LITTER SIZE TO STANDARDIZE IT ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-## MAKE EMPTY DATA FRAME ##
-struct <- dt.struc$Structure
-form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)")
-clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-structure_list <- dt.struc$Structure
-
-slm <- summary(clm)
-allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
-allres <- data.frame(Structure=structure_list)
-allres[,allcols] <- NA
-
-## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
-for (i in 1:length(structure_list)){
-  cstruct <- as.character(allres$Structure[i])
-  form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)")
-  
-  clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-  slm <- summary(clm)
-  allres[i,allcols]<-as.vector(slm$coefficients)}
-
-## SAVE ALLRES DATA ## 
-save(allres, file = "ALLRES.RData")
+}
 
 ################################################################################################
 ## STRUCTUREWISE TREATMENT EFFECT IN WT MTX MICE                                              ##
@@ -453,56 +391,45 @@ save(allres, file = "ALLRES.RData")
 ## USED TO CREATE THE BRAIN MAP IN FIGURE 5A                                                  ##
 ################################################################################################
 
-## LOAD: ALLRES.RData ## 
-load("ALLRES.RData")
+## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES.RData")
 
-## RUN FDR ##
+## RUN FDR ACROSS WT MTX MICE FROM P28-P63 ##
 allres_p <- p.adjust(c(
   allres$`F_treatment_flag_28.Pr(>|t|)`, allres$`M_treatment_flag_28.Pr(>|t|)`,
   allres$`F_treatment_flag_42.Pr(>|t|)`, allres$`M_treatment_flag_42.Pr(>|t|)`,
   allres$`F_treatment_flag_63.Pr(>|t|)`, allres$`M_treatment_flag_63.Pr(>|t|)`
 ), "fdr")
 
-## EDIT DATAFRAME TO REPLACE P-VALUES WITH ADJUST P-VALUES (Q-VALUES)##
-allres$`F_treatment_flag_28.Pr(>|t|)` <- allres_p[1:nrow(allres)]
-allres$`M_treatment_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
-allres$`F_treatment_flag_42.Pr(>|t|)` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
-allres$`M_treatment_flag_42.Pr(>|t|)` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
-allres$`F_treatment_flag_63.Pr(>|t|)` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
-allres$`M_treatment_flag_63.Pr(>|t|)` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
+allres$`F_treatment_flag_28.FDR` <- allres_p[1:nrow(allres)]
+allres$`M_treatment_flag_28.FDR` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
+allres$`F_treatment_flag_42.FDR` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
+allres$`M_treatment_flag_42.FDR` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
+allres$`F_treatment_flag_63.FDR` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
+allres$`M_treatment_flag_63.FDR` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
 
-## SET ESTIMATES TO 0 FOR Q VALUES LESS THAN 0.1 ##
-allres$`F_treatment_flag_28.Estimate` <- allres$`F_treatment_flag_28.Estimate` * (allres$`F_treatment_flag_28.Pr(>|t|)` < 0.1)
-allres$`M_treatment_flag_28.Estimate` <- allres$`M_treatment_flag_28.Estimate` * (allres$`M_treatment_flag_28.Pr(>|t|)` < 0.1)
-allres$`F_treatment_flag_42.Estimate` <- allres$`F_treatment_flag_42.Estimate` * (allres$`F_treatment_flag_42.Pr(>|t|)` < 0.1)
-allres$`M_treatment_flag_42.Estimate` <- allres$`M_treatment_flag_42.Estimate` * (allres$`M_treatment_flag_42.Pr(>|t|)` < 0.1)
-allres$`F_treatment_flag_63.Estimate` <- allres$`F_treatment_flag_63.Estimate` * (allres$`F_treatment_flag_63.Pr(>|t|)` < 0.1)
-allres$`M_treatment_flag_63.Estimate` <- allres$`M_treatment_flag_63.Estimate` * (allres$`M_treatment_flag_63.Pr(>|t|)` < 0.1)
-
-## NOW PERCENT CHANGE ##
+## FOR INTERPRETABILITY, COMPUTE PERCENT CHANGE IN STRUCTURE VOLS AT EACH TIME POINT ##
 
 ## FOR WT FEMALE: USING AGE_FACTOR28 B/C F ARE BASELINES ## 
 F_WT_MTX_28_pc <- allres$F_treatment_flag_28.Estimate/allres$age_factor28.Estimate*100
 F_WT_MTX_42_pc <- allres$F_treatment_flag_42.Estimate/allres$age_factor42.Estimate*100
 F_WT_MTX_63_pc <- allres$F_treatment_flag_63.Estimate/allres$age_factor63.Estimate*100
 
-## FOR WT MALE: ADDING SEX FLAG TO AGE FACTOR TO GET BASELINE MALE 28 ##
+## FOR WT MALE: ADDING SEX FLAG TO AGE FACTOR TO GET MALE BASELINE MALE ##
 Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
 M_WT_MTX_28_pc <- allres$M_treatment_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
-
 Male_WT_Saline_Estimate_42 <- allres$'age_factor42:sex_flag.Estimate' + allres$'age_factor42.Estimate'
 M_WT_MTX_42_pc <- allres$M_treatment_flag_42.Estimate/Male_WT_Saline_Estimate_42*100
-
 Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'age_factor63.Estimate'
 M_WT_MTX_63_pc <- allres$M_treatment_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
 
-## CHECKING THE NUMBER OF STRUCTURES AFFECTED AT EACH TIMEPOINT THAT PASSED FDR THRESHOLD OUT OF ALL 183 STRUCTURES##
-sum(F_WT_MTX_28_pc != 0) #34
-sum(M_WT_MTX_28_pc != 0) #59
-sum(F_WT_MTX_42_pc != 0) #4
-sum(M_WT_MTX_42_pc != 0) #8
-sum(F_WT_MTX_63_pc != 0) #0
-sum(M_WT_MTX_63_pc != 0) #0
+## SUMMARIZE # OF AFFECTED STRUCTURES ##
+print( paste0("MTX VOL CHANGE (FEMALE, P28, FDR<0.1): ",as.character(sum( allres$`F_treatment_flag_28.FDR` < 0.1 ))," structures") ) #34
+print( paste0("MTX VOL CHANGE (MALE, P28, FDR<0.1): ",as.character(sum( allres$`M_treatment_flag_28.FDR` < 0.1 ))," structures") )   #59
+print( paste0("MTX VOL CHANGE (FEMALE, P42, FDR<0.1): ",as.character(sum( allres$`F_treatment_flag_42.FDR` < 0.1 ))," structures") ) #4
+print( paste0("MTX VOL CHANGE (MALE, P42, FDR<0.1): ",as.character(sum( allres$`M_treatment_flag_42.FDR` < 0.1 ))," structures") )   #8
+print( paste0("MTX VOL CHANGE (FEMALE, P63, FDR<0.1): ",as.character(sum( allres$`F_treatment_flag_63.FDR` < 0.1 ))," structures") ) #0
+print( paste0("MTX VOL CHANGE (MALE, P63, FDR<0.1): ",as.character(sum( allres$`M_treatment_flag_63.FDR` < 0.1 ))," structures") )   #0
+
 
 #############################################################################################
 ## STRUCTUREWISE GENOTYPE EFFECT IN KO SALINE MICE                                         ##
@@ -510,79 +437,61 @@ sum(M_WT_MTX_63_pc != 0) #0
 ## USED TO CREATE THE BRAIN MAP IN FIGURE 6A                                               ##
 #############################################################################################
 
-## LOAD: ALLRES.RData ## 
-load("ALLRES.RData")
+## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES.RData")
 
-## FDR ##
-allres_p <- p.adjust(c(allres$`F_genotype_flag_14.Pr(>|t|)`, 
-                       allres$`F_genotype_flag_28.Pr(>|t|)`, 
-                       allres$`F_genotype_flag_42.Pr(>|t|)`, 
-                       allres$`F_genotype_flag_63.Pr(>|t|)`, 
-                       allres$`M_genotype_flag_14.Pr(>|t|)`, 
-                       allres$`M_genotype_flag_28.Pr(>|t|)`, 
-                       allres$`M_genotype_flag_42.Pr(>|t|)`, 
-                       allres$`M_genotype_flag_63.Pr(>|t|)`), 
-                     method = "fdr")
+## RUN FDR across all genotype/age/sex groups ##
+allres_p <- p.adjust(c(
+  allres$`F_genotype_flag_14.Pr(>|t|)`, allres$`F_genotype_flag_28.Pr(>|t|)`,
+  allres$`F_genotype_flag_42.Pr(>|t|)`, allres$`F_genotype_flag_63.Pr(>|t|)`,
+  allres$`M_genotype_flag_14.Pr(>|t|)`, allres$`M_genotype_flag_28.Pr(>|t|)`,
+  allres$`M_genotype_flag_42.Pr(>|t|)`, allres$`M_genotype_flag_63.Pr(>|t|)`
+  ), method = "fdr")
 
+allres$`F_genotype_flag_14.FDR` <- allres_p[1:nrow(allres)]
+allres$`F_genotype_flag_28.FDR` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
+allres$`F_genotype_flag_42.FDR` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
+allres$`F_genotype_flag_63.FDR` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
+allres$`M_genotype_flag_14.FDR` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
+allres$`M_genotype_flag_28.FDR` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
+allres$`M_genotype_flag_42.FDR` <- allres_p[(6 * nrow(allres) + 1):(7 * nrow(allres))]
+allres$`M_genotype_flag_63.FDR` <- allres_p[(7 * nrow(allres) + 1):(8 * nrow(allres))]
 
-## REPLACE ORIGINAL P VALUE WITH ADJUSTED P VALUE ##
-allres$`F_genotype_flag_14.Pr(>|t|)` <- allres_p[1:nrow(allres)]
-allres$`F_genotype_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres) + 1):(2 * nrow(allres))]
-allres$`F_genotype_flag_42.Pr(>|t|)` <- allres_p[(2 * nrow(allres) + 1):(3 * nrow(allres))]
-allres$`F_genotype_flag_63.Pr(>|t|)` <- allres_p[(3 * nrow(allres) + 1):(4 * nrow(allres))]
-allres$`M_genotype_flag_14.Pr(>|t|)` <- allres_p[(4 * nrow(allres) + 1):(5 * nrow(allres))]
-allres$`M_genotype_flag_28.Pr(>|t|)` <- allres_p[(5 * nrow(allres) + 1):(6 * nrow(allres))]
-allres$`M_genotype_flag_42.Pr(>|t|)` <- allres_p[(6 * nrow(allres) + 1):(7 * nrow(allres))]
-allres$`M_genotype_flag_63.Pr(>|t|)` <- allres_p[(7 * nrow(allres) + 1):(8 * nrow(allres))]
+## FOR INTERPRETABILITY, COMPUTE PERCENT CHANGE IN STRUCTURE VOLS AT EACH TIME POINT ##
 
-## UPDATE ESTIMATES BASED ON ADJUSTED P VALUES (Q VALUES) ## 
-allres$`F_genotype_flag_14.Estimate` <- allres$`F_genotype_flag_14.Estimate` * (allres$`F_genotype_flag_14.Pr(>|t|)` < 0.1)
-allres$`F_genotype_flag_28.Estimate` <- allres$`F_genotype_flag_28.Estimate` * (allres$`F_genotype_flag_28.Pr(>|t|)` < 0.1)
-allres$`F_genotype_flag_42.Estimate` <- allres$`F_genotype_flag_42.Estimate` * (allres$`F_genotype_flag_42.Pr(>|t|)` < 0.1)
-allres$`F_genotype_flag_63.Estimate` <- allres$`F_genotype_flag_63.Estimate` * (allres$`F_genotype_flag_63.Pr(>|t|)` < 0.1)
-allres$`M_genotype_flag_14.Estimate` <- allres$`M_genotype_flag_14.Estimate` * (allres$`M_genotype_flag_14.Pr(>|t|)` < 0.1)
-allres$`M_genotype_flag_28.Estimate` <- allres$`M_genotype_flag_28.Estimate` * (allres$`M_genotype_flag_28.Pr(>|t|)` < 0.1)
-allres$`M_genotype_flag_42.Estimate` <- allres$`M_genotype_flag_42.Estimate` * (allres$`M_genotype_flag_42.Pr(>|t|)` < 0.1)
-allres$`M_genotype_flag_63.Estimate` <- allres$`M_genotype_flag_63.Estimate` * (allres$`M_genotype_flag_63.Pr(>|t|)` < 0.1)
+## % CHANGE FOR FEMALE KO MICE ##
+F_KO_14_pc <- allres$F_genotype_flag_14.Estimate / allres$age_factor14.Estimate * 100
+F_KO_28_pc <- allres$F_genotype_flag_28.Estimate / allres$age_factor28.Estimate * 100
+F_KO_42_pc <- allres$F_genotype_flag_42.Estimate / allres$age_factor42.Estimate * 100
+F_KO_63_pc <- allres$F_genotype_flag_63.Estimate / allres$age_factor63.Estimate * 100
 
-## % CHANGE FOR FEMALE KO MICE # SCALING ##
-F_KO_14_pc <- allres$F_genotype_flag_14.Estimate/allres$age_factor14.Estimate*100
-F_KO_28_pc <- allres$F_genotype_flag_28.Estimate/allres$age_factor28.Estimate*100
-F_KO_42_pc <- allres$F_genotype_flag_42.Estimate/allres$age_factor42.Estimate*100
-F_KO_63_pc <- allres$F_genotype_flag_63.Estimate/allres$age_factor63.Estimate*100
+## FOR WT MALE: ADDING SEX FLAG TO AGE FACTOR TO GET MALE BASELINE MALE ##
+Male_WT_Saline_Estimate_14 <- allres$`age_factor14:sex_flag.Estimate` + allres$age_factor14.Estimate
+M_KO_14_pc <- allres$M_genotype_flag_14.Estimate / Male_WT_Saline_Estimate_14 * 100
+Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$age_factor28.Estimate
+M_KO_28_pc <- allres$M_genotype_flag_28.Estimate / Male_WT_Saline_Estimate_28 * 100
+Male_WT_Saline_Estimate_42 <- allres$`age_factor42:sex_flag.Estimate` + allres$age_factor42.Estimate
+M_KO_42_pc <- allres$M_genotype_flag_42.Estimate / Male_WT_Saline_Estimate_42 * 100
+Male_WT_Saline_Estimate_63 <- allres$`age_factor63:sex_flag.Estimate` + allres$age_factor63.Estimate
+M_KO_63_pc <- allres$M_genotype_flag_63.Estimate / Male_WT_Saline_Estimate_63 * 100
 
-## % CHANGE FOR MALE KO MICE # SCALING ##
-Male_WT_Saline_Estimate_14 <- allres$'age_factor14:sex_flag.Estimate' + allres$'age_factor14.Estimate'
-M_KO_14_pc <- allres$M_genotype_flag_14.Estimate/Male_WT_Saline_Estimate_14*100
-
-Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_KO_28_pc <- allres$M_genotype_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
-
-Male_WT_Saline_Estimate_42 <- allres$'age_factor42:sex_flag.Estimate' + allres$'age_factor42.Estimate'
-M_KO_42_pc <- allres$M_genotype_flag_42.Estimate/Male_WT_Saline_Estimate_42*100
-
-Male_WT_Saline_Estimate_63 <- allres$'age_factor63:sex_flag.Estimate' + allres$'age_factor63.Estimate'
-M_KO_63_pc <- allres$M_genotype_flag_63.Estimate/Male_WT_Saline_Estimate_63*100
+## SUMMARIZE # OF AFFECTED STRUCTURES ##
+print( paste0("IL6KO SALINE VOL CHANGE (FEMALE, P14, FDR<0.1): ",as.character(sum( allres$`F_genotype_flag_14.FDR` < 0.1 ))," structures") ) #0
+print( paste0("IL6KO SALINE VOL CHANGE (FEMALE, P28, FDR<0.1): ",as.character(sum( allres$`F_genotype_flag_28.FDR` < 0.1 ))," structures") ) #1
+print( paste0("IL6KO SALINE VOL CHANGE (FEMALE, P42, FDR<0.1): ",as.character(sum( allres$`F_genotype_flag_42.FDR` < 0.1 ))," structures") ) #0
+print( paste0("IL6KO SALINE VOL CHANGE (FEMALE, P63, FDR<0.1): ",as.character(sum( allres$`F_genotype_flag_63.FDR` < 0.1 ))," structures") ) #1
+print( paste0("IL6KO SALINE VOL CHANGE (MALE, P14, FDR<0.1): ",as.character(sum( allres$`M_genotype_flag_14.FDR` < 0.1 ))," structures") ) #5
+print( paste0("IL6KO SALINE VOL CHANGE (MALE, P28, FDR<0.1): ",as.character(sum( allres$`M_genotype_flag_28.FDR` < 0.1 ))," structures") ) #0
+print( paste0("IL6KO SALINE VOL CHANGE (MALE, P42, FDR<0.1): ",as.character(sum( allres$`M_genotype_flag_42.FDR` < 0.1 ))," structures") ) #0
+print( paste0("IL6KO SALINE VOL CHANGE (MALE, P63, FDR<0.1): ",as.character(sum( allres$`M_genotype_flag_63.FDR` < 0.1 ))," structures") ) #0
 
 
-## CHECKING HOW MANY STRUCTURES PASSED THE FDR THRESHOLD AT EACH TIMEPOINT OUT OF 183 STRUCTURES ##
-sum(F_KO_14_pc != 0) #0
-sum(F_KO_28_pc != 0) #1
-sum(F_KO_42_pc != 0) #0
-sum(F_KO_63_pc != 0) #1
-
-sum(M_KO_14_pc != 0) #5
-sum(M_KO_28_pc != 0) #0
-sum(M_KO_42_pc != 0) #0
-sum(M_KO_63_pc != 0) #0
 
 ##################################################################################
 ## GENERATING GENOTYPE EFFECT HISTOGRAM PLOTS                                   ##
 ## THIS IS FOR FIGURE 6B TO COMPARE KO SALINE MICE (P14-P63) TO WT SALINE MICE  ##
 ##################################################################################
 
-## LOAD: ALLRES.RData ## 
-load("ALLRES.RData")
+## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES.RData")
 
 ## BASELINE ESTIMATES FOR FEMALES ## 
 age_factor_14 <- allres$`age_factor14.Estimate`
@@ -632,7 +541,7 @@ x_max <- max(combined_data$Estimate) + 1
 # Define colors for each genotype
 genotype_colors <- c("P14 KO" = "#B2DF8A", "P28 KO" = "#A6CEE3", "P42 KO" = "#33A02C", "P63 KO" = "#1F78B4")
 
-ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
+cplt<-ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
   scale_fill_manual(values = genotype_colors) +
@@ -655,170 +564,99 @@ ggplot(combined_data, aes(x = Estimate, fill = Genotype)) +
   ) +
   facet_grid(Sex ~ Genotype, scales = "free_y")
 
+cairo_pdf("Figure6B.pdf",width=10.0,height=5.5)
+print(cplt) 
+dev.off()
+
+
+
 ########################################################################################
 ## GENERATE 1000 PERMUTATIONS TO TEST GENOTYPE EFFECTS                                ##
 ## THIS SCRIPT SHUFFLES GENOTYPE WITHIN SEX AND RE-RUNS MODELS FOR EACH STRUCTURE     ##
 ## OUTPUT: PERMUTATION_RESULTS_1000.RData FOR STATISTICAL COMPARISON (FIGURE 6)       ##
 #########################################################################################
 
-## LOAD: FINAL_DATA_FRAME.RData ##
-load("FINAL_DATA_FRAME.RData")
 
-## ENSURE GROUP IS FACTOR ##
-FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
+if (file.exists("PERMUTATION_RESULTS_1000.RData")){
+    load("PERMUTATION_RESULTS_1000.RData") #load perm_results_df if already saved to file
+} else {
+    ## SET UP EMPTY RESULTS DATA FRAME ##
+    allres$Permutation <- NA
 
-## EXTRACT 183 BRAIN STRUCTURES ## 
-structure_list <- dt.struc$Structure
+    ## PERMUTATION PARAMETERS ##
+    n_permutation <- 1000
+    perm_results_df <- data.frame()  
 
-## DEFINE AGE AND SEX FLAGS ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+    ## GET UNIQUE ID-GENOTYPE-SEX MAPPING ##
+    df_ID_gen <- distinct(df, ID, Genotype, Sex, .keep_all = FALSE)
 
-## TREATMENT FLAGS FOR EACH TIME POINT ##
-M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+    ## REMOVE GENOTYPE FOR PERMUTATION ##
+    df_no_gen <- select(df, -Genotype)
 
-## GENOTYPE FLAGS FOR EACH TIME POINT ##
-M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
-F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
-M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
+    ## BEGIN PERMUTATION LOOP ##
+    set.seed(123)
+    for (p in 1:n_permutation) {
+      
+      df_dummy <- allres
+      
+      ## SPLIT BY SEX ##
+      df_ID_F <- subset(df_ID_gen, Sex == "Female")
+      df_ID_M <- subset(df_ID_gen, Sex == "Male")
+      
+      ## SHUFFLE GENOTYPE ##
+      df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
+      df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
+      df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+      df_shuffle <- df_shuffle[c("ID", "Genotype")]
+      
+      ## MERGE BACK SHUFFLED GENOTYPE ##
+      df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
+      
+      ## REDEFINE FLAGS WITH SHUFFLED GENOTYPE ##
+      df_perm$age_factor <- as.character(df_perm$Age)
+      df_perm$sex_flag <- (df_perm$Sex == "Male") * 1
+      
+      df_perm$M_treatment_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28)
+      df_perm$F_treatment_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28)
+      df_perm$M_treatment_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42)
+      df_perm$F_treatment_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42)
+      df_perm$M_treatment_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63)
+      df_perm$F_treatment_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63)
+      
+      df_perm$M_genotype_flag_14 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 14)
+      df_perm$F_genotype_flag_14 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 14)
+      df_perm$M_genotype_flag_28 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 28)
+      df_perm$F_genotype_flag_28 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 28)
+      df_perm$M_genotype_flag_42 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 42)
+      df_perm$F_genotype_flag_42 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 42)
+      df_perm$M_genotype_flag_63 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 63)
+      df_perm$F_genotype_flag_63 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 63)
+      
+      ## LOOP THROUGH ALL STRUCTURES ##
+      for (j in 1:length(structure_list)) {
+        cstruct <- as.character(structure_list[j])
+        cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
+        clm_perm <- lmer(cform, data = df_perm)
+        slm <- summary(clm_perm)    
+        df_dummy[j, allcols] <- as.vector(slm$coefficients)
+        df_dummy$Permutation <- p
+      }
+      
+      ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
+      perm_results_df <- rbind(perm_results_df, df_dummy)
+    }
 
-## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE) ##
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
+    ## SAVE RESULTS ##
+    save(perm_results_df, file = "PERMUTATION_RESULTS_1000.RData")
 
-## CREATE Z-SCORE FOR LITTER SIZE ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-## FIT BASE MODEL FOR COEFFICIENT STRUCTURE ##
-form <- glue("`{structure_list[1]}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)")
-clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-
-## SET UP EMPTY RESULTS DATA FRAME ##
-slm <- summary(clm)
-allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
-allres <- data.frame(Structure = structure_list)
-allres[, allcols] <- NA
-allres$Permutation <- NA
-
-## PERMUTATION PARAMETERS ##
-n_permutation <- 1000
-perm_results_df <- data.frame()  
-
-## GET UNIQUE ID-GENOTYPE-SEX MAPPING ##
-df_ID_gen <- distinct(FINAL_DATA_FRAME, ID, Genotype, Sex, .keep_all = FALSE)
-
-## REMOVE GENOTYPE FOR PERMUTATION ##
-df_no_gen <- select(FINAL_DATA_FRAME, -Genotype)
-
-## BEGIN PERMUTATION LOOP ##
-set.seed(123)
-for (p in 1:n_permutation) {
-  
-  df_dummy <- allres
-  
-  ## SPLIT BY SEX ##
-  df_ID_F <- subset(df_ID_gen, Sex == "Female")
-  df_ID_M <- subset(df_ID_gen, Sex == "Male")
-  
-  ## SHUFFLE GENOTYPE ##
-  df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
-  df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
-  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
-  df_shuffle <- df_shuffle[c("ID", "Genotype")]
-  
-  ## MERGE BACK SHUFFLED GENOTYPE ##
-  df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
-  
-  ## REDEFINE FLAGS WITH SHUFFLED GENOTYPE ##
-  df_perm$age_factor <- as.character(df_perm$Age)
-  df_perm$sex_flag <- (df_perm$Sex == "Male") * 1
-  
-  df_perm$M_treatment_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28)
-  df_perm$F_treatment_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28)
-  df_perm$M_treatment_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42)
-  df_perm$F_treatment_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42)
-  df_perm$M_treatment_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63)
-  df_perm$F_treatment_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63)
-  
-  df_perm$M_genotype_flag_14 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 14)
-  df_perm$F_genotype_flag_14 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 14)
-  df_perm$M_genotype_flag_28 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 28)
-  df_perm$F_genotype_flag_28 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 28)
-  df_perm$M_genotype_flag_42 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 42)
-  df_perm$F_genotype_flag_42 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 42)
-  df_perm$M_genotype_flag_63 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Male") * (df_perm$Age == 63)
-  df_perm$F_genotype_flag_63 <- (df_perm$Genotype == "KO") * (df_perm$Sex == "Female") * (df_perm$Age == 63)
-  
-  ## LOOP THROUGH ALL STRUCTURES ##
-  for (j in 1:length(structure_list)) {
-    cstruct <- as.character(structure_list[j])
-    
-    form <- glue("`{cstruct}` ~ -1 + factor(Age) + age_factor:sex_flag + 
-                  age_factor:z_litter_size +
-                  M_treatment_flag_28 + F_treatment_flag_28 +
-                  M_treatment_flag_42 + F_treatment_flag_42 + 
-                  M_treatment_flag_63 + F_treatment_flag_63 + 
-                  M_genotype_flag_14 + F_genotype_flag_14 +
-                  M_genotype_flag_28 + F_genotype_flag_28 +
-                  M_genotype_flag_42 + F_genotype_flag_42 + 
-                  M_genotype_flag_63 + F_genotype_flag_63 +
-                  M_treatment_flag_28:M_genotype_flag_28 +
-                  F_treatment_flag_28:F_genotype_flag_28 +
-                  M_treatment_flag_42:M_genotype_flag_42 +
-                  F_treatment_flag_42:F_genotype_flag_42 +
-                  M_treatment_flag_63:M_genotype_flag_63 +
-                  F_treatment_flag_63:F_genotype_flag_63 +
-                  (1|ID) + (1|Home_cage)")
-    
-    clm_perm <- lmer(as.formula(form), data = df_perm)
-    slm <- summary(clm_perm)
-    
-    df_dummy[j, allcols] <- as.vector(slm$coefficients)
-    df_dummy$Permutation <- p
-  }
-  
-  ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
-  perm_results_df <- rbind(perm_results_df, df_dummy)
 }
 
-## SAVE RESULTS ##
-save(perm_results_df, file = "PERMUTATION_RESULTS_1000.RData")
 
 ####################################################################################################
 ## COMPARE OBSERVED GENOTYPE EFFECTS TO PERMUTATION DISTRIBUTIONS USING EMPIRICAL P-VALUES       ##
 ## NORMALIZE ESTIMATES BY SEX AND AGE, COMPUTE MEDIANS, AND CALCULATE TWO-TAILED P-VALUES        ##
 ## DATA SOURCES: PERMUTATION_RESULTS_1000.RData & ALLRES.RData                                   ##
 ####################################################################################################
-
-
-## LOAD: PERMUTATION_RESULTS_1000.RData ##
-load("PERMUTATION_RESULTS_1000.RData")
 
 ## NORMALIZE ESTIMATES FOR EACH AGE AND SEX ## 
 perm_results_df <- perm_results_df %>%
@@ -856,36 +694,7 @@ perm_medians <- perm_results_df %>%
     Median_F_Gen_63_p = median(f_estimates_63_p, na.rm = TRUE)
   )
 
-print(perm_medians)
-
-## LOAD: ALLRES.RData ## 
-load("ALLRES.RData")
-
-## BASELINE FOR FEMALES
-age_factor_14 <- allres$`age_factor14.Estimate`
-age_factor_28 <- allres$`age_factor28.Estimate`
-age_factor_42 <- allres$`age_factor42.Estimate`
-age_factor_63 <- allres$`age_factor63.Estimate`
-
-## BASELINE FOR MALES ##  
-Male_WT_Saline_Estimate_14 <- age_factor_14 + allres$`age_factor14:sex_flag.Estimate`
-Male_WT_Saline_Estimate_28 <- age_factor_28 + allres$`age_factor28:sex_flag.Estimate`
-Male_WT_Saline_Estimate_42 <- age_factor_42 + allres$`age_factor42:sex_flag.Estimate`
-Male_WT_Saline_Estimate_63 <- age_factor_63 + allres$`age_factor63:sex_flag.Estimate`
-
-## NORMALIZE ESTIMATES FOR EACH TERM ##
-
-## FEMALES ##
-f_estimates_14 <- (allres$`F_genotype_flag_14.Estimate` / age_factor_14) * 100
-f_estimates_28 <- (allres$`F_genotype_flag_28.Estimate` / age_factor_28) * 100
-f_estimates_42 <- (allres$`F_genotype_flag_42.Estimate` / age_factor_42) * 100
-f_estimates_63 <- (allres$`F_genotype_flag_63.Estimate` / age_factor_63) * 100
-
-## MALES ##
-m_estimates_14 <- (allres$`M_genotype_flag_14.Estimate` / Male_WT_Saline_Estimate_14) * 100
-m_estimates_28 <- (allres$`M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
-m_estimates_42 <- (allres$`M_genotype_flag_42.Estimate` / Male_WT_Saline_Estimate_42) * 100
-m_estimates_63 <- (allres$`M_genotype_flag_63.Estimate` / Male_WT_Saline_Estimate_63) * 100
+# print(perm_medians)
 
 observed_F_med_14 <- median(f_estimates_14)
 observed_F_med_28 <- median(f_estimates_28)
@@ -897,38 +706,33 @@ observed_M_med_28 <- median(m_estimates_28)
 observed_M_med_42 <- median(m_estimates_42)
 observed_M_med_63 <- median(m_estimates_63)
 
-
 ## STATISTICAL TESTING USING TWO-TAILED EMPERICAL P-VALUE ##
 
 ## FEMALES ##
 
 # P14 #
-N <- length(perm_medians$Median_F_Gen_14_p)
+N <- length(perm_medians$Median_F_Gen_14_p)    #should match n_permutation
 j <- sum(observed_F_med_14 > perm_medians$Median_F_Gen_14_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.772 
+print( paste0("Median IL6KO Effect across all structures (FEMALE, P14): ",as.character(observed_F_med_14),"p=",as.character(mypval)) )  #0.772 
 
 # P28 #
 N <- length(perm_medians$Median_F_Gen_28_p)
 j <- sum(observed_F_med_28 > perm_medians$Median_F_Gen_28_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.264
+print( paste0("Median IL6KO Effect across all structures (FEMALE, P28): ",as.character(observed_F_med_28),"p=",as.character(mypval)) )  #0.264
 
 # P42 #
 N <- length(perm_medians$Median_F_Gen_42_p)
 j <- sum(observed_F_med_42 > perm_medians$Median_F_Gen_42_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.106
+print( paste0("Median IL6KO Effect across all structures (FEMALE, P42): ",as.character(observed_F_med_42),"p=",as.character(mypval)) )  #0.106
 
 # P63 #
 N <- length(perm_medians$Median_F_Gen_63_p)
 j <- sum(observed_F_med_63 > perm_medians$Median_F_Gen_63_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.066
+print( paste0("Median IL6KO Effect across all structures (FEMALE, P63): ",as.character(observed_F_med_63),"p=",as.character(mypval)) )  #0.066
 
 ## MALES ##
 
@@ -936,135 +740,107 @@ mypval
 N <- length(perm_medians$Median_M_Gen_14_p)
 j <- sum(observed_M_med_14 > perm_medians$Median_M_Gen_14_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.01 
+print( paste0("Median IL6KO Effect across all structures (MALE, P14): ",as.character(observed_M_med_14),"p=",as.character(mypval)) )  #0.01 
 
 # P28 #
 N <- length(perm_medians$Median_M_Gen_28_p)
 j <- sum(observed_M_med_28 > perm_medians$Median_M_Gen_28_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.116
+print( paste0("Median IL6KO Effect across all structures (MALE, P28): ",as.character(observed_M_med_28),"p=",as.character(mypval)) )  #0.116 
 
 # P42 #
 N <- length(perm_medians$Median_M_Gen_42_p)
 j <- sum(observed_M_med_42 > perm_medians$Median_M_Gen_42_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.182
+print( paste0("Median IL6KO Effect across all structures (MALE, P42): ",as.character(observed_M_med_42),"p=",as.character(mypval)) )  #0.182
 
 # P63 #
 N <- length(perm_medians$Median_M_Gen_63_p)
 j <- sum(observed_M_med_63 > perm_medians$Median_M_Gen_63_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.4
+print( paste0("Median IL6KO Effect across all structures (MALE, P63): ",as.character(observed_M_med_63),"p=",as.character(mypval)) )  #0.4
 
 ########################################################################################
+## USE A SECOND LINEAR MODEL FOR CONVENIENCE TO PROBE IL6KO-MTX VS IL6KO-SALINE
+## SEPARATED BY AGE AND SEX
+##
 ## RUN LINEAR MIXED EFFECTS MODEL #2 FOR EACH STRUCTURE AND SAVE RESULTS ##
 ## CODE USED TO GENERATE ALLRES_2.RData ##
 #########################################################################################
 
-## LOAD FINAL_DATA_FRAME ##
-load("FINAL_DATA_FRAME.RData")
 
-## FLAGS ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
+if (file.exists("ALLRES_2.RData")){
+    load("ALLRES_2.RData")
+} else {
+    M_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
 
-M_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
 
-M_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
 
-M_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+    M_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+    M_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+    F_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
+    F_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
 
-M_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+    ## MAKE EMPTY DATA FRAME ##
+    formula_rhs_2 <- " -1 + age_factor + age_factor:sex_flag + 
+                        age_factor:z_litter_size +
+                        M_KO_flag_14 + 
+                        F_KO_flag_14 + 
+                        M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
+                        F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
+                        M_Saline_KO_flag_28 + 
+                        F_Saline_KO_flag_28 + 
+                        M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
+                        F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
+                        M_Saline_KO_flag_42 + 
+                        F_Saline_KO_flag_42 + 
+                        M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
+                        F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
+                        M_Saline_KO_flag_63 + 
+                        F_Saline_KO_flag_63 + 
+                        (1|ID) + (1|Home_cage)"
 
-
-## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE TO AVOID COUNTING THE SAME CAGE MULTIPLE TIMES)
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-
-## CREATE Z-SCORE FOR LITTER SIZE TO STANDARDIZE IT ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-## MAKE EMPTY DATA FRAME ##
-struct <- dt.struc$Structure
-form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_KO_flag_14 + 
-            F_KO_flag_14 + 
-            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
-            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
-            M_Saline_KO_flag_28 + 
-            F_Saline_KO_flag_28 + 
-            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
-            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
-            M_Saline_KO_flag_42 + 
-            F_Saline_KO_flag_42 + 
-            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
-            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
-            M_Saline_KO_flag_63 + 
-            F_Saline_KO_flag_63 + 
-            (1|ID) + (1|Home_cage)")
-clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-structure_list <- dt.struc$Structure
-
-slm <- summary(clm)
-allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
-allres <- data.frame(Structure=structure_list)
-allres[,allcols] <- NA
-
-## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
-for (i in 1:length(structure_list)){
-  cstruct <- as.character(allres$Structure[i])
-  form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_KO_flag_14 + 
-            F_KO_flag_14 + 
-            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
-            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
-            M_Saline_KO_flag_28 + 
-            F_Saline_KO_flag_28 + 
-            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
-            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
-            M_Saline_KO_flag_42 + 
-            F_Saline_KO_flag_42 + 
-            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
-            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
-            M_Saline_KO_flag_63 + 
-            F_Saline_KO_flag_63 + 
-            (1|ID) + (1|Home_cage)")
-  clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-  slm <- summary(clm)
-  allres[i,allcols]<-as.vector(slm$coefficients)}
-
-## SAVE ALLRES_2.RData ##
+    ## GENERATE TEMPLATE OUTPUT FROM LMER
+    cform <- as.formula( paste0("GM"," ~ ",formula_rhs_2) )  
+    clm <- lmer(cform, data = df)
+    slm <- summary(clm)
+    allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+    allres_2 <- data.frame(Structure=structure_list)
+    allres_2[,allcols] <- NA
+    ## LOOP THROUGH ALL STRUCTURES AND RUN LMER ## 
+    for (i in 1:length(structure_list)){
+      cstruct <- as.character(allres_2$Structure[i])
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) )  
+      clm <- lmer(cform, data = df)
+      slm <- summary(clm)
+      allres_2[i,allcols]<-as.vector(slm$coefficients)
+    }
+    ## SAVE ALLRES_2.RData ##
+    save(allres_2, file = "ALLRES_2.RData")
+}
 
 
 #################################################################################################################
@@ -1073,92 +849,87 @@ for (i in 1:length(structure_list)){
 ## USED TO CREATE THE BRAIN MAP IN FIGURE 7A                                                                   ##
 #################################################################################################################
 
-## LOAD IN ALLRES 2 DATA FRAME##
-load("/projects/tayoub/ALLRES_2.RData")
+## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES_2.RData")
 
-allres_p <- p.adjust(c(allres$`F_MTX_WT_flag_28.Pr(>|t|)`, allres$`M_MTX_WT_flag_28.Pr(>|t|)`, 
-                       allres$`M_MTX_KO_flag_28.Pr(>|t|)`, allres$`F_MTX_KO_flag_28.Pr(>|t|)`), "fdr")
+## RUN FDR correction across MTX comparisons at P28 ##
+allres_p <- p.adjust(c(
+  allres_2$`F_MTX_WT_flag_28.Pr(>|t|)`,
+  allres_2$`M_MTX_WT_flag_28.Pr(>|t|)`,
+  allres_2$`F_MTX_KO_flag_28.Pr(>|t|)`,
+  allres_2$`M_MTX_KO_flag_28.Pr(>|t|)`
+), method = "fdr")
 
-## REPLACE ORIGINAL P VALUE WITH ADJUSTED P VALUE ##
-allres$`F_MTX_WT_flag_28.Pr(>|t|)` <- allres_p[1:nrow(allres)]
-allres$`M_MTX_WT_flag_28.Pr(>|t|)` <- allres_p[(nrow(allres)+1):(2*nrow(allres))]
-allres$`M_MTX_KO_flag_28.Pr(>|t|)` <- allres_p[(2*nrow(allres)+1):(3*nrow(allres))]
-allres$`F_MTX_KO_flag_28.Pr(>|t|)` <- allres_p[(3*nrow(allres)+1):(4*nrow(allres))]
+allres_2$`F_MTX_WT_flag_28.FDR` <- allres_p[1:nrow(allres_2)]
+allres_2$`M_MTX_WT_flag_28.FDR` <- allres_p[(nrow(allres_2) + 1):(2 * nrow(allres_2))]
+allres_2$`F_MTX_KO_flag_28.FDR` <- allres_p[(2 * nrow(allres_2) + 1):(3 * nrow(allres_2))]
+allres_2$`M_MTX_KO_flag_28.FDR` <- allres_p[(3 * nrow(allres_2) + 1):(4 * nrow(allres_2))]
 
-
-allres$`F_MTX_WT_flag_28.Estimate`<- allres$`F_MTX_WT_flag_28.Estimate` * (allres$`F_MTX_WT_flag_28.Pr(>|t|)` < 0.1)
-allres$`M_MTX_WT_flag_28.Estimate`<- allres$`M_MTX_WT_flag_28.Estimate` * (allres$`M_MTX_WT_flag_28.Pr(>|t|)` < 0.1)
-allres$`M_MTX_KO_flag_28.Estimate`<- allres$`M_MTX_KO_flag_28.Estimate` * (allres$`M_MTX_KO_flag_28.Pr(>|t|)` < 0.1)
-allres$`F_MTX_KO_flag_28.Estimate`<- allres$`F_MTX_KO_flag_28.Estimate` * (allres$`F_MTX_KO_flag_28.Pr(>|t|)` < 0.1)
-
-#### NOW PERCENT CHANGE ####
+## FOR INTERPRETABILITY, COMPUTE PERCENT CHANGE IN STRUCTURE VOLS AT P28 ##
 
 ## FOR WT FEMALE ##
-F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
+F_WT_MTX_28_pc <- allres_2$F_MTX_WT_flag_28.Estimate / allres_2$age_factor28.Estimate * 100
 
-## FOR WT MALE ## 
-Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+## FOR WT MALE ##
+Male_WT_Saline_Estimate_28 <- allres_2$`age_factor28:sex_flag.Estimate` + allres_2$age_factor28.Estimate
+M_WT_MTX_28_pc <- allres_2$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28 * 100
 
 ## FOR KO FEMALE ##
-F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
-F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
+F_KO_Saline_28_Estimate <- allres_2$`F_Saline_KO_flag_28.Estimate` + allres_2$age_factor28.Estimate
+F_KO_MTX_28_pc <- allres_2$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate * 100
 
 ## FOR KO MALE ##
-M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
-M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
+M_KO_Saline_28_Estimate <- allres_2$`M_Saline_KO_flag_28.Estimate` + Male_WT_Saline_Estimate_28
+M_KO_MTX_28_pc <- allres_2$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate * 100
 
-# CHECKING HOW MANY STRUCTURES OUT OF 183 PASS FDR THRESHOLD #
-sum(F_WT_MTX_28_pc != 0) #56
-sum(M_WT_MTX_28_pc != 0) #79
-sum(F_KO_MTX_28_pc != 0) #75
-sum(M_KO_MTX_28_pc != 0) #44
-
+## SUMMARIZE # OF AFFECTED STRUCTURES ##
+print(paste0("MTX EFFECT (FEMALE WT, P28, FDR<0.1): ", sum(allres_2$`F_MTX_WT_flag_28.FDR` < 0.1), " structures")) #56
+print(paste0("MTX EFFECT (MALE WT, P28, FDR<0.1): ", sum(allres_2$`M_MTX_WT_flag_28.FDR` < 0.1), " structures")) #79
+print(paste0("MTX EFFECT (FEMALE KO, P28, FDR<0.1): ", sum(allres_2$`F_MTX_KO_flag_28.FDR` < 0.1), " structures")) #75
+print(paste0("MTX EFFECT (MALE KO, P28, FDR<0.1): ", sum(allres_2$`M_MTX_KO_flag_28.FDR` < 0.1), " structures")) #44
 
 ######################################################################################
 ## GENERATING TREATMENT EFFECT HISTOGRAM PLOTS                                      ##
 ## THIS IS FOR FIGURE 7B TO COMPARE MTX-TREATED MICE TO SALINE-TREATED MICE AT P28  ##
 ## COMPARING WT MTX TO WT SALINE & KO MTX TO KO SALINE (SEPARATED BY SEX)           ##
 ######################################################################################
-  
-## LOAD IN ALLRES 2 DATA FRAME##
-load("ALLRES_2.RData")
+
+## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES_2.RData")
 
 ## WT FEMALE ##
-F_WT_MTX_28_pc <- allres$F_MTX_WT_flag_28.Estimate/allres$age_factor28.Estimate*100
+F_WT_MTX_28_pc <- allres_2$F_MTX_WT_flag_28.Estimate / allres_2$age_factor28.Estimate * 100
 
-## WT MALE ## 
-Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_WT_MTX_28_pc <- allres$M_MTX_WT_flag_28.Estimate/Male_WT_Saline_Estimate_28*100
+## WT MALE ##
+Male_WT_Saline_Estimate_28 <- allres_2$'age_factor28:sex_flag.Estimate' + allres_2$'age_factor28.Estimate'
+M_WT_MTX_28_pc <- allres_2$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28 * 100
 
 ## KO FEMALE ##
-F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
-F_KO_MTX_28_pc <- allres$F_MTX_KO_flag_28.Estimate/F_KO_Saline_28_Estimate*100
+F_KO_Saline_28_Estimate <- allres_2$'F_Saline_KO_flag_28.Estimate' + allres_2$'age_factor28.Estimate'
+F_KO_MTX_28_pc <- allres_2$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate * 100
 
 ## KO MALE ##
-M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
-M_KO_MTX_28_pc <- allres$M_MTX_KO_flag_28.Estimate/M_KO_Saline_28_Estimate*100
+M_KO_Saline_28_Estimate <- allres_2$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
+M_KO_MTX_28_pc <- allres_2$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate * 100
 
-## CREATE COMBINED_DATA WITH SEX AND GENOTYPE ## 
+## CREATE COMBINED_DATA WITH SEX AND GENOTYPE ##
 combined_data <- data.frame(
   Estimate = c(F_WT_MTX_28_pc, M_WT_MTX_28_pc, F_KO_MTX_28_pc, M_KO_MTX_28_pc),
-  Sex = rep(c("Female", "Male", "Female", "Male"), each = nrow(allres)),
-  Genotype = rep(c("WT", "WT", "KO", "KO"), each = nrow(allres))
+  Sex = rep(c("Female", "Male", "Female", "Male"), each = nrow(allres_2)),
+  Genotype = rep(c("WT", "WT", "KO", "KO"), each = nrow(allres_2))
 )
+
+## SET AXIS LIMITS FOR CONSISTENT X-AXIS ##
+x_min <- min(combined_data$Estimate, na.rm = TRUE)
+x_max <- max(combined_data$Estimate, na.rm = TRUE)
 
 ## SET CUSTOM COLOURS ##
 sex_colors <- c("Female" = "#66CC99", "Male" = "#FF9966")
 
-## SET ACIS LIMITS FOR CONSISTENT X-AXIS ## 
-x_min <- min(combined_data$Estimate, na.rm = TRUE)
-x_max <- max(combined_data$Estimate, na.rm = TRUE)
-
-## ENSURE CORRECT ORDERING OF FACTOR LEVELS ## 
+## ENSURE CORRECT ORDERING OF FACTOR LEVELS ##
 combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
 combined_data$Genotype <- factor(combined_data$Genotype, levels = c("WT", "KO"))
 
 ## PLOT ##
-ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
+cplt<-ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
   scale_fill_manual(values = sex_colors) +
@@ -1180,197 +951,108 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   ) +
   facet_grid(Genotype ~ Sex, scales = "free_y")
 
+cairo_pdf("Figure7B.pdf",width=10.0,height=5.5)
+print(cplt) 
+dev.off()
+
 ###############################################################################################
 ## GENERATE 1000 PERMUTATIONS TO TEST TREATMENT EFFECTS                                      ##
 ## THIS SCRIPT SHUFFLES TREATMENT WITHIN SEX AND RE-RUNS MODELS FOR EACH STRUCTURE           ##
 ## OUTPUT: PERMUTATION_RESULTS_TREATMENT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 7)    ##
 ###############################################################################################
 
-## LOAD: FINAL_DATA_FRAME.RData ##
-load("FINAL_DATA_FRAME.RData")
-
-## ENSURE GROUP IS FACTOR ##
-FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
-
-## EXTRACT 183 BRAIN STRUCTURES ## 
-structure_list <- dt.struc$Structure
-
-## LINEAR MODEL 2 ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
-
-M_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
-
-M_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-
-M_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-
-M_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-
-## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE) ##
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-
-## CREATE Z-SCORE FOR LITTER SIZE ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-## MAKE EMPTY DATA FRAME ##
-struct <- dt.struc$Structure
-form <- glue("`{struct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_KO_flag_14 + 
-            F_KO_flag_14 + 
-            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
-            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
-            M_Saline_KO_flag_28 + 
-            F_Saline_KO_flag_28 + 
-            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
-            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
-            M_Saline_KO_flag_42 + 
-            F_Saline_KO_flag_42 + 
-            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
-            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
-            M_Saline_KO_flag_63 + 
-            F_Saline_KO_flag_63 + 
-            (1|ID) + (1|Home_cage)")
-clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-structure_list <- dt.struc$Structure
-
-## SET UP EMPTY RESULTS DATA FRAME ##
-slm <- summary(clm)
-allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
-allres <- data.frame(Structure=structure_list)
-allres[,allcols] <- NA
-allres$Permutation <- NA
-
-## PERMUTATION PARAMETERS ##
-n_permutation <- 1000
-perm_results_df <- data.frame() 
-
-## EXTRACTING ID & TREATMENT ## 
-df_ID_treat <- distinct(FINAL_DATA_FRAME, ID, Treatment, Sex, .keep_all = FALSE)
-
-## REMOVE TREATMENT FOR PERMUTATION ##
-df_no_treat <- select(FINAL_DATA_FRAME, -Treatment)
-
-## BEGIN PERMUTATION LOOP ## 
-set.seed(123)
-for (p in 1:n_permutation) {
+if (file.exists("PERMUTATION_RESULTS_TREATMENT_1000.RData")){
+  load("PERMUTATION_RESULTS_TREATMENT_1000.RData") #load perm_results_df if already saved to file
+} else {
+  ## SET UP EMPTY RESULTS DATA FRAME ##
+  allres$Permutation <- NA
   
-  df_dummy <- allres
+  ## PERMUTATION PARAMETERS ##
+  n_permutation <- 1000
+  perm_results_df <- data.frame() 
   
-  ## SPLIT BY SEX ##
-  df_ID_F <- subset(df_ID_treat, Sex=="Female")
-  df_ID_M <- subset(df_ID_treat, Sex=="Male")
+  ## GET UNIQUE ID-GENOTYPE-SEX MAPPING ##
+  df_ID_treat <- distinct(FINAL_DATA_FRAME, ID, Treatment, Sex, .keep_all = FALSE)
   
-  ## SHUFFLE TREATMENT ##
-  df_shuffle_F <- transform(df_ID_F, Treatment = sample(df_ID_F$Treatment))
-  df_shuffle_M <- transform(df_ID_M, Treatment = sample(df_ID_M$Treatment))
-  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
-  df_shuffle <- df_shuffle[c("ID", "Treatment")]
+  ## REMOVE TREATMENT FOR PERMUTATION ##
+  df_no_treat <- select(FINAL_DATA_FRAME, -Treatment)
   
-  ## MERGE BACK SHUFFLED TREATMENT ##
-  df_perm <- left_join(df_no_treat, df_shuffle, by = "ID")
-  
-  ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ##
-  age_factor <- as.character(df_perm$Age)
-  sex_flag <- (df_perm$Sex == "Male") * 1
-  
-  M_KO_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
-  M_WT_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
-  F_KO_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
-  F_WT_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
-  
-  M_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
-  M_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
-  F_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
-  F_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
-  M_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
-  M_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
-  F_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
-  F_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
-  
-  M_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
-  M_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
-  F_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
-  F_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
-  M_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
-  M_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
-  F_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
-  F_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
-  
-  M_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
-  M_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
-  F_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
-  F_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
-  M_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
-  M_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
-  F_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
-  F_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
-  
-  ## LOOP THROUGH ALL STRUCTURES ##
-  for (j in 1:length(structure_list)) {
-    cstruct <- as.character(df_dummy$Structure[j])
+  ## BEGIN PERMUTATION LOOP ## 
+  set.seed(123)
+  for (p in 1:n_permutation) {
     
-    form <- glue("`{cstruct}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_KO_flag_14 + 
-            F_KO_flag_14 + 
-            M_MTX_KO_flag_28 + M_MTX_WT_flag_28 +
-            F_MTX_KO_flag_28 + F_MTX_WT_flag_28 + 
-            M_Saline_KO_flag_28 + 
-            F_Saline_KO_flag_28 + 
-            M_MTX_KO_flag_42 + M_MTX_WT_flag_42 + 
-            F_MTX_KO_flag_42 + F_MTX_WT_flag_42 +
-            M_Saline_KO_flag_42 + 
-            F_Saline_KO_flag_42 + 
-            M_MTX_KO_flag_63 + M_MTX_WT_flag_63 +
-            F_MTX_KO_flag_63 + F_MTX_WT_flag_63 +
-            M_Saline_KO_flag_63 + 
-            F_Saline_KO_flag_63 + 
-            (1|ID) + (1|Home_cage)")
+    df_dummy <- allres
     
-    clm_perm <- lmer(as.formula(form), data = df_perm)
+    ## SPLIT BY SEX ##
+    df_ID_F <- subset(df_ID_treat, Sex=="Female")
+    df_ID_M <- subset(df_ID_treat, Sex=="Male")
     
-    slm <- summary(clm_perm)
-    df_dummy[j,allcols]<-as.vector(slm$coefficients)
-    df_dummy$Permutation <- p
+    ## SHUFFLE TREATMENT ##
+    df_shuffle_F <- transform(df_ID_F, Treatment = sample(df_ID_F$Treatment))
+    df_shuffle_M <- transform(df_ID_M, Treatment = sample(df_ID_M$Treatment))
+    df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+    df_shuffle <- df_shuffle[c("ID", "Treatment")]
+    
+    ## MERGE BACK SHUFFLED TREATMENT ##
+    df_perm <- left_join(df_no_treat, df_shuffle, by = "ID")
+    
+    ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ##
+    age_factor <- as.character(df_perm$Age)
+    sex_flag <- (df_perm$Sex == "Male") * 1
+    
+    M_KO_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
+    M_WT_flag_14 <- (df_perm$Sex == "Male") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
+    F_KO_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype == "KO")
+    F_WT_flag_14 <- (df_perm$Sex == "Female") * (df_perm$Age == 14) * (df_perm$Genotype != "KO")
+    
+    M_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+    M_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+    F_MTX_KO_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+    F_MTX_WT_flag_28 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+    M_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+    M_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+    F_Saline_KO_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype == "KO")
+    F_Saline_WT_flag_28 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 28) * (df_perm$Genotype != "KO")
+    
+    M_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+    M_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+    F_MTX_KO_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+    F_MTX_WT_flag_42 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+    M_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+    M_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+    F_Saline_KO_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype == "KO")
+    F_Saline_WT_flag_42 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 42) * (df_perm$Genotype != "KO")
+    
+    M_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+    M_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+    F_MTX_KO_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+    F_MTX_WT_flag_63 <- (df_perm$Treatment == "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+    M_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+    M_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Male") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+    F_Saline_KO_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype == "KO")
+    F_Saline_WT_flag_63 <- (df_perm$Treatment != "MTX") * (df_perm$Sex == "Female") * (df_perm$Age == 63) * (df_perm$Genotype != "KO")
+    
+    ## LOOP THROUGH ALL STRUCTURES ##
+    for (j in 1:length(structure_list)) {
+      cstruct <- as.character(structure_list[j])
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) )  
+      clm_perm <- lmer(cform, data = df_perm)
+      slm <- summary(clm_perm)    
+      df_dummy[j, allcols] <- as.vector(slm$coefficients)
+      df_dummy$Permutation <- p
+    }
+    
+    ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
+    perm_results_df <- rbind(perm_results_df, df_dummy)
   }
   
-  ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
-  perm_results_df <- rbind(perm_results_df, df_dummy)
-}
-
-## SAVE RESULTS ##
-save(perm_results_df, file = "PERMUTATION_RESULTS_TREATMENT_1000.RData")
+  ## SAVE RESULTS ##
+  save(perm_results_df, file = "PERMUTATION_RESULTS_TREATMENT_1000.RData")
+  
+} 
 
 ####################################################################################################
-## COMPARE OBSERVED TREATMENT EFFECTS TO PERMUTATION DISTRIBUTIONS USING EMPIRICAL P-VALUES      ##
+## COMPARE TREATMENT EFFECTS TO PERMUTATION DISTRIBUTIONS USING EMPIRICAL P-VALUES               ##
 ## NORMALIZE ESTIMATES BY SEX AND AGE, COMPUTE MEDIANS, AND CALCULATE TWO-TAILED P-VALUES        ##
 ## DATA SOURCES: PERMUTATION_TREATMENT_1000.RData & ALLRES_2.RData                               ##
 ####################################################################################################
@@ -1406,61 +1088,40 @@ perm_medians <- perm_results_df %>%
     Median_M_KO_MTX = median(M_KO_MTX_28_p)
   )
 
-print(perm_medians)
-
-## LOAD ALLRES ##
-load("ALLRES_2.RData")
-
-## WT FEMALE ##
-F_WT_MTX_28 <- (allres$F_MTX_WT_flag_28.Estimate / allres$age_factor28.Estimate) * 100
-
-## WT MALE ##
-Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_WT_MTX_28 <- (allres$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28) * 100
-
-#KO FEMALE ##
-F_KO_Saline_28_Estimate <- allres$'F_Saline_KO_flag_28.Estimate' + allres$'age_factor28.Estimate'
-F_KO_MTX_28 <- (allres$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate) * 100
-
-## KO MALE ##
-M_KO_Saline_28_Estimate <- allres$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
-M_KO_MTX_28 <- (allres$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate) * 100
-
 observed_F_WT_MTX_median <- median(F_WT_MTX_28)
 observed_F_KO_MTX_median <- median(F_KO_MTX_28)
 observed_M_WT_MTX_median <- median(M_WT_MTX_28)
 observed_M_KO_MTX_median <- median(M_KO_MTX_28)
 
-print(observed_F_WT_MTX_median)
-print(observed_F_KO_MTX_median)
-print(observed_M_WT_MTX_median)
-print(observed_M_KO_MTX_median)
+## STATISTICAL TESTING USING TWO-TAILED EMPERICAL P-VALUE ##
 
-## TESTING ##
+## FEMALES ##
 
+## WT ##
 N <- length(perm_medians$Median_F_WT_MTX)
 j <- sum(observed_F_WT_MTX_median > perm_medians$Median_F_WT_MTX)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.078 
+print( paste0("Median WT-MTX Effect across all structures (FEMALE, P28): ",as.character(observed_F_WT_MTX_median),"p=",as.character(mypval)) )  #0.078  
 
+## KO ##
 N <- length(perm_medians$Median_F_KO_MTX)
 j <- sum(observed_F_KO_MTX_median > perm_medians$Median_F_KO_MTX)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0 
+print( paste0("Median KO-MTX Effect across all structures (FEMALE, P28): ",as.character(observed_F_KO_MTX_median),"p=",as.character(mypval)) )  #0  
 
+## MALES ##
+
+## WT ##
 N <- length(perm_medians$Median_M_WT_MTX)
 j <- sum(observed_M_WT_MTX_median > perm_medians$Median_M_WT_MTX)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.006
+print( paste0("Median WT-MTX Effect across all structures (MALE, P28): ",as.character(observed_M_WT_MTX_median),"p=",as.character(mypval)) )  #0.006  
 
+## KO ##
 N <- length(perm_medians$Median_M_KO_MTX)
 j <- sum(observed_M_KO_MTX_median > perm_medians$Median_M_KO_MTX)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0
+print( paste0("Median KO-MTX Effect across all structures (MALE, P28): ",as.character(observed_M_KO_MTX_median),"p=",as.character(mypval)) )  #0  
 
 
 ####################################################################################################
@@ -1491,40 +1152,30 @@ print(wilcox_male_MTX_comparison)
 ## USED TO CREATE BRAIN MAP FOR SUPPLEMENTARY FIGURE                                                           ##
 #################################################################################################################
 
-## LOAD DATA ##
-load("ALLRES.RData")
-
-## SET ESTIMATES TO ZERO IF P-VALUE IS LESS THAN 0.05 ##
-allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` * (allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05)
-allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` * (allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05)
-
-## PERCENT CHANGE ##
+## FOR INTERPRETABILITY, COMPUTE PERCENT CHANGE IN STRUCTURE VOLS AT EACH TIME POINT ##
 
 ## FEMALE ##
-F_28_pc <- allres_adjust$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$age_factor28.Estimate * 100
+F_28_pc <- allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$age_factor28.Estimate * 100
 
 ## MALE ##
 Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'age_factor28.Estimate'
-M_28_pc <- allres_adjust$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
+M_28_pc <- allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
 
-## CHECKING NUMBER OF STRUCTURES ##
-sum(F_28_pc != 0) ## 19 structures ##
-sum(M_28_pc != 0) ## 5 ##
+## SUMMARIZE # OF AFFECTED STRUCTURES ##
+print( paste0("IL6KO MTX VOL CHANGE (FEMALE, P28, FDR<0.1): ",as.character(sum( allres$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #19
+print( paste0("IL6KO MTX VOL CHANGE (MALE, P28, FDR<0.1): ",as.character(sum( allres$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #5
 
 ######################################################################################################
 ## GENERATE HISTOGRAM TO GENERATE GENOTYPE × TREATMENT INTERACTION EFFECTS                          ##
 ## OUTPUT: PERMUTATION_RESULTS_INT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 8B)                ##
 ######################################################################################################
 
-## LOAD ALLRES ##
-load("ALLRES.RData")
-
 # NORMALIZE ESTIMATES #
 
 ## FEMALE INTERACTION EFFECT P28 ##
 F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
 
-## FEMALE INTERACTION EFFECT P28 ##
+## MALE INTERACTION EFFECT P28 ##
 Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
 M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
 
@@ -1532,25 +1183,33 @@ M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_
 m_data_INT <- data.frame(Estimate = M_INT_28_pc, Sex = "Male", Interaction = "M_treatment_flag_28:M_genotype_flag_28")
 f_data_INT <- data.frame(Estimate = F_INT_28_pc, Sex = "Female", Interaction = "F_treatment_flag_28:F_genotype_flag_28")
 
-# COMBINE DATA FRAMES INTO ONE AND SET LEVELS #
-combined_data <- bind_rows(m_data_INT, f_data_INT) %>%
-  mutate(Interaction = factor(Interaction, levels = c(
-    "F_treatment_flag_28:F_genotype_flag_28", "M_treatment_flag_28:M_genotype_flag_28"
-  ),
-  labels = c("KO-MTX Interaction (Female)", "KO-MTX Interaction (Male)")))
+combined_data <- rbind(f_data_INT, m_data_INT)
 
-# COLOURS #
-sex_colors <- c("Male" = "#9370DB", "Female" = "#D68CA6")
+## RELABEL FACET TITLES ##
+combined_data$Interaction <- factor(
+  combined_data$Interaction,
+  levels = c(
+    "F_treatment_flag_28:F_genotype_flag_28",
+    "M_treatment_flag_28:M_genotype_flag_28"
+  ),
+  labels = c(
+    "Female IL6KO MTX Interaction",
+    "Male IL6KO MTX Interaction"
+  )
+)
 
 # DEFINE X-AXIS LIMITS #
 x_min <- min(combined_data$Estimate, na.rm = TRUE)
 x_max <- max(combined_data$Estimate, na.rm = TRUE)
 
+# COLOURS #
+sex_colors <- c("Male" = "#9370DB", "Female" = "#D68CA6")
+
 ## MAKE FEMALE APPEAR FIRST FOR PLOTTING ##
 combined_data$Sex <- factor(combined_data$Sex, levels = c("Female", "Male"))
 
 ## PLOT ##
-ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
+cplt<- ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.8, position = "identity") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
   scale_fill_manual(values = sex_colors) +
@@ -1573,6 +1232,9 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
   ) +
   facet_wrap(~ Interaction, ncol = 2)
 
+cairo_pdf("Figure8B.pdf",width=10.0,height=5.5)
+print(cplt) 
+dev.off()
 
 ######################################################################################################
 ## GENERATE 1000 PERMUTATIONS TO TEST GENOTYPE × TREATMENT INTERACTION EFFECTS                     ##
@@ -1580,162 +1242,87 @@ ggplot(combined_data, aes(x = Estimate, fill = Sex)) +
 ## OUTPUT: PERMUTATION_RESULTS_INT_1000.RData FOR STATISTICAL COMPARISON (FIGURE 8)                ##
 ######################################################################################################
 
-## LOAD: FINAL_DATA_FRAME.RData ##
-load("FINAL_DATA_FRAME.RData")
-
-## ENSURE GROUP IS FACTOR ##
-FINAL_DATA_FRAME$Genotype <- as.factor(FINAL_DATA_FRAME$Genotype)
-
-## EXTRACT 183 BRAIN STRUCTURES ## 
-structure_list <- dt.struc$Structure
-
-## DEFINE AGE AND SEX FLAGS ##
-age_factor <- as.character(FINAL_DATA_FRAME$Age)
-sex_flag <- (FINAL_DATA_FRAME$Sex == "Male") * 1
-
-## TREATMENT FLAGS FOR EACH TIME POINT ##
-M_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_treatment_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_treatment_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_treatment_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## GENOTYPE FLAGS FOR EACH TIME POINT ##
-M_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14)
-F_genotype_flag_14 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14)
-M_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28)
-F_genotype_flag_28 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28)
-M_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42)
-F_genotype_flag_42 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42)
-M_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63)
-F_genotype_flag_63 <- (FINAL_DATA_FRAME$Genotype == "KO") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63)
-
-## CALCULATE MEAN AND SD OF LITTER SIZE (ONLY ONCE PER HOME CAGE) ##
-mean_litter_size <- mean(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-sd_litter_size <- sd(FINAL_DATA_FRAME$Litter_size[!duplicated(FINAL_DATA_FRAME$Home_cage)])
-
-## CREATE Z-SCORE FOR LITTER SIZE ##
-FINAL_DATA_FRAME <- FINAL_DATA_FRAME %>%
-  mutate(z_litter_size = (Litter_size - mean_litter_size) / sd_litter_size)
-
-## FIT BASE MODEL FOR COEFFICIENT STRUCTURE ##
-form <- glue("`{structure_list[1]}` ~ -1 + age_factor + age_factor:sex_flag + 
-            age_factor:z_litter_size +
-            M_treatment_flag_28 + F_treatment_flag_28 +
-            M_treatment_flag_42 + F_treatment_flag_42 + 
-            M_treatment_flag_63 + F_treatment_flag_63 + 
-            M_genotype_flag_14 + F_genotype_flag_14 +
-            M_genotype_flag_28 + F_genotype_flag_28 +
-            M_genotype_flag_42 + F_genotype_flag_42 + 
-            M_genotype_flag_63 + F_genotype_flag_63 +
-            M_treatment_flag_28:M_genotype_flag_28 +
-            F_treatment_flag_28:F_genotype_flag_28 +
-            M_treatment_flag_42:M_genotype_flag_42 +
-            F_treatment_flag_42:F_genotype_flag_42 +
-            M_treatment_flag_63:M_genotype_flag_63 +
-            F_treatment_flag_63:F_genotype_flag_63 +
-            (1|ID) + (1|Home_cage)")
-clm <- lmer(as.formula(form), data = FINAL_DATA_FRAME)
-
-## SET UP EMPTY RESULTS DATA FRAME ##
-slm <- summary(clm)
-allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
-allres <- data.frame(Structure = structure_list)
-allres[, allcols] <- NA
-allres$Permutation <- NA
-
-## PERMUTATION PARAMETERS ##
-n_permutation <- 1000
-perm_results_df_2 <- data.frame()  
-
-## FILTER FOR ONLY MTX MICE ## 
-FINAL_DATA_FRAME_MTX <- FINAL_DATA_FRAME %>%
-  filter(Treatment == "MTX")
-
-## FILTER FOR ONLY SALINE MICE ## 
-FINAL_DATA_FRAME_Saline <- FINAL_DATA_FRAME %>%
-  filter(Treatment == "Saline")
-
-## EXTRACTING ID & GENOTYPE ## 
-df_ID_gen <- distinct(FINAL_DATA_FRAME_MTX, ID, Genotype, Sex, .keep_all = FALSE)
-
-## REMOVE GENOTYPE FROM MAIN DATA FRAME ##
-df_no_gen <- select(FINAL_DATA_FRAME_MTX, -Genotype)
-
-## LOOP THROUGH PERMUTATIONS BELOW 
-set.seed(123)
-for (p in 1:n_permutation) {
+if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
+  load("PERMUTATION_RESULTS_INT_1000.RData") #load perm_results_df if already saved to file
+} else {
+  ## SET UP EMPTY RESULTS DATA FRAME ##
+  allres$Permutation <- NA
   
-  df_dummy <- allres
+  ## PERMUTATION PARAMETERS ##
+  n_permutation <- 1000
+  perm_results_df_2 <- data.frame()  
   
-  df_ID_F <- subset(df_ID_gen, Sex=="Female")
-  df_ID_M <- subset(df_ID_gen, Sex=="Male")
+  ## FILTER FOR ONLY MTX MICE ## 
+  FINAL_DATA_FRAME_MTX <- FINAL_DATA_FRAME %>%
+    filter(Treatment == "MTX")
   
-  ## SHUFFLE GENOTYOPE BY ID (ENSURE SAME ID GETS SAME GENOTYPE ACROSS TIMEPOINTS) 
-  df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
-  df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
-  df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
-  df_shuffle <- df_shuffle[c("ID", "Genotype")]
+  ## FILTER FOR ONLY SALINE MICE ## 
+  FINAL_DATA_FRAME_Saline <- FINAL_DATA_FRAME %>%
+    filter(Treatment == "Saline")
   
-  ## MERGE BACK SHUFFLED TREATMENT ##
-  df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
-  df_perm_2 <- rbind(df_perm, FINAL_DATA_FRAME_Saline)
+  ## EXTRACTING ID & GENOTYPE ## 
+  df_ID_gen <- distinct(FINAL_DATA_FRAME_MTX, ID, Genotype, Sex, .keep_all = FALSE)
   
-  ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ## 
-  df_perm_2$age_factor <- as.character(df_perm_2$Age)
-  df_perm_2$sex_flag <- (df_perm_2$Sex == "Male") * 1
+  ## REMOVE GENOTYPE FROM MAIN DATA FRAME ##
+  df_no_gen <- select(FINAL_DATA_FRAME_MTX, -Genotype)
   
-  df_perm_2$M_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
-  df_perm_2$F_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
-  df_perm_2$M_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
-  df_perm_2$F_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
-  df_perm_2$M_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
-  df_perm_2$F_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
-  
-  df_perm_2$M_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 14)
-  df_perm_2$F_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 14)
-  df_perm_2$M_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
-  df_perm_2$F_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
-  df_perm_2$M_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
-  df_perm_2$F_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
-  df_perm_2$M_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
-  df_perm_2$F_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
-  
-  ## LOOP THROUGH ALL STRUCTURES ##
-  for (j in 1:length(structure_list)) {
-    cstruct <- as.character(df_dummy$Structure[j])
+  ## LOOP THROUGH PERMUTATIONS BELOW 
+  set.seed(123)
+  for (p in 1:n_permutation) {
     
-    form <- glue("`{cstruct}` ~ -1 + factor(Age) + age_factor:sex_flag + 
-                  age_factor:z_litter_size +
-                  M_treatment_flag_28 + F_treatment_flag_28 +
-                  M_treatment_flag_42 + F_treatment_flag_42 + 
-                  M_treatment_flag_63 + F_treatment_flag_63 + 
-                  M_genotype_flag_14 + F_genotype_flag_14 +
-                  M_genotype_flag_28 + F_genotype_flag_28 +
-                  M_genotype_flag_42 + F_genotype_flag_42 + 
-                  M_genotype_flag_63 + F_genotype_flag_63 +
-                  M_treatment_flag_28:M_genotype_flag_28 +
-                  F_treatment_flag_28:F_genotype_flag_28 +
-                  M_treatment_flag_42:M_genotype_flag_42 +
-                  F_treatment_flag_42:F_genotype_flag_42 +
-                  M_treatment_flag_63:M_genotype_flag_63 +
-                  F_treatment_flag_63:F_genotype_flag_63 +
-                  (1|ID) + (1|Home_cage)")
+    df_dummy <- allres
     
-    clm_perm <- lmer(as.formula(form), data = df_perm_2)
+    df_ID_F <- subset(df_ID_gen, Sex=="Female")
+    df_ID_M <- subset(df_ID_gen, Sex=="Male")
     
-    slm <- summary(clm_perm)
-    df_dummy[j,allcols]<-as.vector(slm$coefficients)
-    df_dummy$Permutation <- p
+    ## SHUFFLE GENOTYOPE BY ID (ENSURE SAME ID GETS SAME GENOTYPE ACROSS TIMEPOINTS) 
+    df_shuffle_F <- transform(df_ID_F, Genotype = sample(df_ID_F$Genotype))
+    df_shuffle_M <- transform(df_ID_M, Genotype = sample(df_ID_M$Genotype))
+    df_shuffle <- rbind(df_shuffle_F, df_shuffle_M)
+    df_shuffle <- df_shuffle[c("ID", "Genotype")]
+    
+    ## MERGE BACK SHUFFLED TREATMENT ##
+    df_perm <- left_join(df_no_gen, df_shuffle, by = "ID")
+    df_perm_2 <- rbind(df_perm, FINAL_DATA_FRAME_Saline)
+    
+    ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ## 
+    df_perm_2$age_factor <- as.character(df_perm_2$Age)
+    df_perm_2$sex_flag <- (df_perm_2$Sex == "Male") * 1
+    
+    df_perm_2$M_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
+    df_perm_2$F_treatment_flag_28 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
+    df_perm_2$M_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
+    df_perm_2$F_treatment_flag_42 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
+    df_perm_2$M_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
+    df_perm_2$F_treatment_flag_63 <- (df_perm_2$Treatment == "MTX") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
+    
+    df_perm_2$M_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 14)
+    df_perm_2$F_genotype_flag_14 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 14)
+    df_perm_2$M_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 28)
+    df_perm_2$F_genotype_flag_28 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 28)
+    df_perm_2$M_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 42)
+    df_perm_2$F_genotype_flag_42 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 42)
+    df_perm_2$M_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Male") * (df_perm_2$Age == 63)
+    df_perm_2$F_genotype_flag_63 <- (df_perm_2$Genotype == "KO") * (df_perm_2$Sex == "Female") * (df_perm_2$Age == 63)
+    
+    ## LOOP THROUGH ALL STRUCTURES ##
+    for (j in 1:length(structure_list)) {
+      cstruct <- as.character(structure_list[j])
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
+      clm_perm <- lmer(cform, data = df_perm_2)
+      slm <- summary(clm_perm)    
+      df_dummy[j, allcols] <- as.vector(slm$coefficients)
+      df_dummy$Permutation <- p
+    }
+    
+    ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
+    perm_results_df_2 <- rbind(perm_results_df_2, df_dummy)
   }
   
-  ## COMBINE ALL RESULTS INTO ONE BIG DATA FRAME ##
-  perm_results_df_2 <- rbind(perm_results_df_2, df_dummy)
-}
-
-## SAVE RESULTS ##
-save(perm_results_df_2, file = "PERMUTATION_RESULTS_INT_1000.RData")
+  ## SAVE RESULTS ##
+  save(perm_results_df_2, file = "PERMUTATION_RESULTS_INT_1000.RData")
+  
+} 
 
 ####################################################################################################
 ## COMPARE OBSERVED GENOTYPE × TREATMENT INTERACTIONS TO PERMUTATION DISTRIBUTIONS AT P28        ##
@@ -1765,36 +1352,22 @@ perm_medians <- perm_results_df_2 %>%
     Median_F_INT_28_pc_p = median(F_INT_28_pc_p, na.rm = TRUE)
   )
 
-print(perm_medians)
-
-## LOAD ALLRES TO COMPUTE % DIFFERENCES ##
-load("ALLRES.RData")
-
-## FEMALE INTERACTION P28 ##
-F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
-
-## MALE INTERACTION P28 ##
-Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
-M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
-
 observed_F_median <- median(F_INT_28_pc)
 observed_M_median <- median(M_INT_28_pc)
-
-#### TESTING ####
 
 ## TWO-TAILED EMPERICAL P-VALUE ##
 
 N <- length(perm_medians$Median_F_INT_28_pc_p)
 j <- sum(observed_F_median> perm_medians$Median_F_INT_28_pc_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.454
+print( paste0("Median KO-MTX Interaction Effect across all structures (FEMALE, P28): ",as.character(observed_F_median),"p=",as.character(mypval)) )  #0.454  
+
 
 N <- length(perm_medians$Median_M_INT_28_pc_p)
 j <- sum(observed_M_median> perm_medians$Median_M_INT_28_pc_p)
 mypval <- ifelse(j>N/2,2*(N-j)/N,2*j/N)
-mypval
-#0.512
+print( paste0("Median KO-MTX Interaction Effect across all structures (MALE, P28): ",as.character(observed_M_median),"p=",as.character(mypval)) )  #0.512  
+
 
 ####################################################################################################
 ## STATISTICAL COMPARISON OF GENOTYPE × TREATMENT INTERACTION EFFECTS AT P28 USING WILCOX TEST   ##
@@ -1814,11 +1387,10 @@ print(wilcox_interaction_comparison)
 ## MOUSE WEIGHT TRAJECTORY PLOT                                                                   ##
 ####################################################################################################
 
-## LOAD FINAL_WEIGHT.CSV ##
-load("FINAL_WEIGHT.CSV")
-
-## PLOTTING THE WEIGHTS CURVE -- KEEPING SEX SEPARATE ##
-
+if (file.exists("FINAL_WEIGHT.csv")) {
+  FINAL_WEIGHT <- read.csv("FINAL_WEIGHT.csv")
+  } else {
+  
 ## CHANGE TO NUMERIC ##
 FINAL_WEIGHT$Age <- as.numeric(as.character(FINAL_WEIGHT$Age))
 FINAL_WEIGHT$Weight <- as.numeric(as.character(FINAL_WEIGHT$Weight))
@@ -1839,7 +1411,7 @@ weightc <- FINAL_WEIGHT %>%
 weightc$Group <- factor(weightc$Group, levels = c("WT+Saline", "WT+MTX", "KO+Saline", "KO+MTX"))
 
 ## PLOTTING ##
-ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
+cplt<- ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
   geom_line(size = 2) +
   geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = Group), 
               alpha = 0.1, linetype = "dotted", size = 0.5) +
@@ -1868,86 +1440,96 @@ ggplot(weightc, aes(x = Age, y = mean, group = Group, color = Group)) +
     panel.spacing = unit(2, "lines")
   )
 
+cairo_pdf("Figure2.pdf",width=10.0,height=5.5)
+print(cplt) 
+dev.off()
+
+}
 ####################################################################################################
 ## MOUSE WEIGHT STATISTICAL CALCULATIONS                                                          ##
 ####################################################################################################
 
-###### MAKING FEMALE WT SALINE MICE BASELINE ######
 
-# SET WT SALINE BASELINE 
-FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
+####################################################################################################
+## FEMAKE WT SALINE BASELINE                                                                      ##
+####################################################################################################
 
-## CONVERT AGE TO FACTOR ##
+## SET BASELINE LEVELS ##
+FINAL_WEIGHT$Group <- relevel(factor(FINAL_WEIGHT$Group), ref = "WT+Saline")
 FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
-
-## MAKING FEMALE BASELINE ##
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
 
-## LINEAR MODEL ##
+## FIT THE MODEL ##
 Linear_mixed_model <- lmer(
-  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  Weight ~ Age * Group * Sex + (1 | ID) + (1 | Home_Cage),
   data = FINAL_WEIGHT
 )
-summary(Linear_mixed_model)
 
+coefs <- summary(Linear_mixed_model)$coefficients
+sig_effects_WT_F <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
+sig_effects_WT_F <- sig_effects_WT_F[sig_effects_WT_F[, "Pr(>|t|)"] < 0.05, ]
+print(sig_effects_WT_F[, "Pr(>|t|)"])
 ## WT MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE FEMALE MICE FROM P22 TO P27 ##
 
-###### MAKING FEMALE KO SALINE MICE BASELINE ######
-FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
+####################################################################################################
+## FEMAKE KO SALINE BASELINE                                                                      ##
+####################################################################################################
 
-## CONVERT AGE TO FACTOR ##
-FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
-
-## MAKING FEMALE BASELINE ##
+## SET BASELINE LEVELS ##
+FINAL_WEIGHT$Group <- relevel(factor(FINAL_WEIGHT$Group), ref = "KO+Saline")
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Female", "Male"))
 
-## LINEAR MODEL ##
+## FIT THE MODEL ##
 Linear_mixed_model <- lmer(
-  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  Weight ~ Age * Group * Sex + (1 | ID) + (1 | Home_Cage),
   data = FINAL_WEIGHT
 )
 
-summary(Linear_mixed_model)
-
+coefs <- summary(Linear_mixed_model)$coefficients
+sig_effects_KO_F <- coefs[grep("^Age[0-9]+:GroupKO\\+MTX$", rownames(coefs)) , ]
+sig_effects_KO_F <- sig_effects_KO_F[sig_effects_KO_F[, "Pr(>|t|)"] < 0.05, ]
+print(sig_effects_KO_F[, "Pr(>|t|)"])
 ## KO MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE FEMALE MICE FROM P22 TO P35 ##
 
-###### MAKING MALE KO SALINE MICE BASELINE ######
+####################################################################################################
+## MALE KO SALINE BASELINE                                                                      ##
+####################################################################################################
 
-FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "KO+Saline")
-
-## CONVERT AGE TO FACTOR ##
-FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
-
-## MAKING MALE BASELINE ##
+## SET BASELINE LEVELS ##
+FINAL_WEIGHT$Group <- relevel(factor(FINAL_WEIGHT$Group), ref = "KO+Saline")
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
 
-## LINEAR MODEL ##
+## FIT THE MODEL ##
 Linear_mixed_model <- lmer(
-  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  Weight ~ Age * Group * Sex + (1 | ID) + (1 | Home_Cage),
   data = FINAL_WEIGHT
 )
 
-summary(Linear_mixed_model)
-
+coefs <- summary(Linear_mixed_model)$coefficients
+sig_effects_KO_M <- coefs[grep("^Age[0-9]+:GroupKO\\+MTX$", rownames(coefs)) , ]
+sig_effects_KO_M <- sig_effects_KO_M[sig_effects_KO_M[, "Pr(>|t|)"] < 0.05, ]
+print(sig_effects_KO_M[, "Pr(>|t|)"])
 ## KO MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE MALE MICE FROM P22 TO P49 ##
 
-###### MAKING MALE WT SALINE MICE BASELINE ######
-FINAL_WEIGHT$Group <- relevel(FINAL_WEIGHT$Group, ref = "WT+Saline")
+####################################################################################################
+## MALE WT SALINE BASELINE                                                                        ##
+####################################################################################################
 
-## CONVERT AGE TO FACTOR ##
-FINAL_WEIGHT$Age <- as.factor(FINAL_WEIGHT$Age)
-
-## MAKING MALE BASELINE ##
+## SET BASELINE LEVELS ##
+FINAL_WEIGHT$Group <- relevel(factor(FINAL_WEIGHT$Group), ref = "WT+Saline")
 FINAL_WEIGHT$Sex <- factor(FINAL_WEIGHT$Sex, levels = c("Male", "Female"))
 
-## LINEAR MODEL ##
+## FIT THE MODEL ##
 Linear_mixed_model <- lmer(
-  Weight ~ Age * Group * Sex + (1|ID) + (1|Home_Cage),
+  Weight ~ Age * Group * Sex + (1 | ID) + (1 | Home_Cage),
   data = FINAL_WEIGHT
 )
 
-summary(Linear_mixed_model)
-
+coefs <- summary(Linear_mixed_model)$coefficients
+sig_effects_WT_M <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
+sig_effects_WT_M <- sig_effects_WT_M[sig_effects_WT_M[, "Pr(>|t|)"] < 0.05, ]
+print(sig_effects_WT_M[, "Pr(>|t|)"])
 ## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
+
 
 
