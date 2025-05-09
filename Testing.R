@@ -93,8 +93,8 @@ Linear_mixed_model <- lmer(
 coefs <- summary(Linear_mixed_model)$coefficients
 sig_effects_WT_F <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
 sig_effects_WT_F <- sig_effects_WT_F[sig_effects_WT_F[, "Pr(>|t|)"] < 0.05, ]
+cat("## WT MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE FEMALE MICE FROM P22 TO P27 ##\n")
 print(sig_effects_WT_F[, "Pr(>|t|)"])
-## WT MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE FEMALE MICE FROM P22 TO P27 ##
 
 ####################################################################################################
 ## FEMALE KO SALINE BASELINE                                                                      ##
@@ -113,8 +113,8 @@ Linear_mixed_model <- lmer(
 coefs <- summary(Linear_mixed_model)$coefficients
 sig_effects_KO_F <- coefs[grep("^Age[0-9]+:GroupKO\\+MTX$", rownames(coefs)) , ]
 sig_effects_KO_F <- sig_effects_KO_F[sig_effects_KO_F[, "Pr(>|t|)"] < 0.05, ]
+cat("## KO MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE FEMALE MICE FROM P22 TO P35 ##\n")
 print(sig_effects_KO_F[, "Pr(>|t|)"])
-## KO MTX FEMALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE FEMALE MICE FROM P22 TO P35 ##
 
 ####################################################################################################
 ## MALE KO SALINE BASELINE                                                                      ##
@@ -133,8 +133,8 @@ Linear_mixed_model <- lmer(
 coefs <- summary(Linear_mixed_model)$coefficients
 sig_effects_KO_M <- coefs[grep("^Age[0-9]+:GroupKO\\+MTX$", rownames(coefs)) , ]
 sig_effects_KO_M <- sig_effects_KO_M[sig_effects_KO_M[, "Pr(>|t|)"] < 0.05, ]
+cat("## KO MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE MALE MICE FROM P22 TO P49 ##\n")
 print(sig_effects_KO_M[, "Pr(>|t|)"])
-## KO MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN KO SALINE MALE MICE FROM P22 TO P49 ##
 
 ####################################################################################################
 ## MALE WT SALINE BASELINE                                                                        ##
@@ -153,7 +153,7 @@ Linear_mixed_model <- lmer(
 coefs <- summary(Linear_mixed_model)$coefficients
 sig_effects_WT_M <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
 sig_effects_WT_M <- sig_effects_WT_M[sig_effects_WT_M[, "Pr(>|t|)"] < 0.05, ]
+cat("## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##\n")
 print(sig_effects_WT_M[, "Pr(>|t|)"])
-## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
 
 
