@@ -768,37 +768,37 @@ print( paste0("Median IL6KO Effect across all structures (MALE, P63): ",as.chara
 ## CODE USED TO GENERATE ALLRES_2.RData ##
 #########################################################################################
 
-M_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_KO_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_WT_flag_14 <- (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 14) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_KO_flag_14 <- (df$Sex == "Male") * (df$Age == 14) * (df$Genotype == "KO")
+M_WT_flag_14 <- (df$Sex == "Male") * (df$Age == 14) * (df$Genotype != "KO")
+F_KO_flag_14 <- (df$Sex == "Female") * (df$Age == 14) * (df$Genotype == "KO")
+F_WT_flag_14 <- (df$Sex == "Female") * (df$Age == 14) * (df$Genotype != "KO")
 
-M_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_28 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 28) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_MTX_KO_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 28) * (df$Genotype == "KO")
+M_MTX_WT_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 28) * (df$Genotype != "KO")
+F_MTX_KO_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 28) * (df$Genotype == "KO")
+F_MTX_WT_flag_28 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 28) * (df$Genotype != "KO")
+M_Saline_KO_flag_28 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 28) * (df$Genotype == "KO")
+M_Saline_WT_flag_28 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 28) * (df$Genotype != "KO")
+F_Saline_KO_flag_28 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 28) * (df$Genotype == "KO")
+F_Saline_WT_flag_28 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 28) * (df$Genotype != "KO")
 
-M_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_42 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 42) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_MTX_KO_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 42) * (df$Genotype == "KO")
+M_MTX_WT_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 42) * (df$Genotype != "KO")
+F_MTX_KO_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 42) * (df$Genotype == "KO")
+F_MTX_WT_flag_42 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 42) * (df$Genotype != "KO")
+M_Saline_KO_flag_42 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 42) * (df$Genotype == "KO")
+M_Saline_WT_flag_42 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 42) * (df$Genotype != "KO")
+F_Saline_KO_flag_42 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 42) * (df$Genotype == "KO")
+F_Saline_WT_flag_42 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 42) * (df$Genotype != "KO")
 
-M_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_MTX_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_MTX_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment == "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-M_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-M_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Male") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
-F_Saline_KO_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype == "KO")
-F_Saline_WT_flag_63 <- (FINAL_DATA_FRAME$Treatment != "MTX") * (FINAL_DATA_FRAME$Sex == "Female") * (FINAL_DATA_FRAME$Age == 63) * (FINAL_DATA_FRAME$Genotype != "KO")
+M_MTX_KO_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 63) * (df$Genotype == "KO")
+M_MTX_WT_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Male") * (df$Age == 63) * (df$Genotype != "KO")
+F_MTX_KO_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 63) * (df$Genotype == "KO")
+F_MTX_WT_flag_63 <- (df$Treatment == "MTX") * (df$Sex == "Female") * (df$Age == 63) * (df$Genotype != "KO")
+M_Saline_KO_flag_63 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 63) * (df$Genotype == "KO")
+M_Saline_WT_flag_63 <- (df$Treatment != "MTX") * (df$Sex == "Male") * (df$Age == 63) * (df$Genotype != "KO")
+F_Saline_KO_flag_63 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 63) * (df$Genotype == "KO")
+F_Saline_WT_flag_63 <- (df$Treatment != "MTX") * (df$Sex == "Female") * (df$Age == 63) * (df$Genotype != "KO")
 
 formula_rhs_2 <- " -1 + age_factor + age_factor:sex_flag + 
                     age_factor:z_litter_size +
@@ -1253,11 +1253,11 @@ if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
   perm_results_df_2 <- data.frame()  
   
   ## FILTER FOR ONLY MTX MICE ## 
-  FINAL_DATA_FRAME_MTX <- df %>%
+  df_MTX <- df %>%
     filter(Treatment == "MTX")
   
   ## FILTER FOR ONLY SALINE MICE ## 
-  FINAL_DATA_FRAME_Saline <- df %>%
+  df_Saline <- df %>%
     filter(Treatment == "Saline")
   
   ## EXTRACTING ID & GENOTYPE ## 
@@ -1283,7 +1283,7 @@ if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
     
     ## MERGE BACK SHUFFLED TREATMENT ##
     df_perm_1 <- left_join(df_no_gen_2, df_shuffle_int, by = "ID")
-    df_perm_2 <- rbind(df_perm_1, FINAL_DATA_FRAME_Saline)
+    df_perm_2 <- rbind(df_perm_1, df_Saline)
     
     ## REDEFINE FLAGS WITH SHUFFLED TREATMENT ## 
     df_perm_2$age_factor <- as.character(df_perm_2$Age)
@@ -1524,4 +1524,3 @@ sig_effects_WT_M <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
 sig_effects_WT_M <- sig_effects_WT_M[sig_effects_WT_M[, "Pr(>|t|)"] < 0.05, ]
 cat("## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##\n")
 print(sig_effects_WT_M[, "Pr(>|t|)"])
-
