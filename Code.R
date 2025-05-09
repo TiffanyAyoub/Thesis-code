@@ -635,7 +635,7 @@ if (file.exists("PERMUTATION_RESULTS_1000.RData")){
     ## LOOP THROUGH ALL STRUCTURES ##
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
-      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )
       clm_perm <- lmer(cform, data = df_perm)
       slm <- summary(clm_perm)    
       df_dummy[j, allcols] <- as.vector(slm$coefficients)
@@ -840,6 +840,12 @@ if (file.exists("ALLRES_2.RData")){
   save(allres_2, file = "ALLRES_2.RData")
 }
 
+if (!exists("allcols_2")) {
+  cform <- as.formula(paste0("`", structure_list[1], "` ~ ", formula_rhs_2))
+  clm <- lmer(cform, data = df)
+  slm <- summary(clm)
+  allcols_2 <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
+}
 #################################################################################################################
 ## STRUCTUREWISE TREATMENT EFFECT IN MTX MICE AT P28                                                           ##
 ## THIS IS FOR FIGURE 7A TO COMPARE 1) WT MTX MICE TO WT SALINE 2) KO MTX TO KO SALINE (SPLIT BY SEX AT P28)   ##
@@ -1035,7 +1041,7 @@ if (file.exists("PERMUTATION_RESULTS_TREATMENT_1000.RData")){
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) )  
       clm_perm <- lmer(cform, data = df_perm_treat)
       slm <- summary(clm_perm)    
-      df_dummy_treat[j, allcols] <- as.vector(slm$coefficients)
+      df_dummy_treat[j, allcols_2] <- as.vector(slm$coefficients)
       df_dummy_treat$Permutation <- p
     }
     
@@ -1082,10 +1088,10 @@ perm_medians <- perm_treat_df %>%
     Median_M_KO_MTX = median(M_KO_MTX_28_p)
   )
 
-observed_F_WT_MTX_median <- median(F_WT_MTX_28)
-observed_F_KO_MTX_median <- median(F_KO_MTX_28)
-observed_M_WT_MTX_median <- median(M_WT_MTX_28)
-observed_M_KO_MTX_median <- median(M_KO_MTX_28)
+observed_F_WT_MTX_median <- median(F_WT_MTX_28_pc)
+observed_F_KO_MTX_median <- median(F_KO_MTX_28_pc)
+observed_M_WT_MTX_median <- median(M_WT_MTX_28_pc)
+observed_M_KO_MTX_median <- median(M_KO_MTX_28_pc)
 
 ## STATISTICAL TESTING USING TWO-TAILED EMPERICAL P-VALUE ##
 
@@ -1125,7 +1131,7 @@ print( paste0("Median KO-MTX Effect across all structures (MALE, P28): ",as.char
 ####################################################################################################
 
 # Compare F KO vs F WT  
-wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28, F_KO_MTX_28, 
+wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28_pc, F_KO_MTX_28_pc, 
                                             alternative = "two.sided")
 print(wilcox_female_MTX_comparison)
 # Significant #
@@ -1133,7 +1139,7 @@ print(wilcox_female_MTX_comparison)
 # THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
 # Compare M KO vs M WT
-wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28, M_KO_MTX_28, 
+wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28_pc, M_KO_MTX_28_pc, 
                                           alternative = "two.sided")
 print(wilcox_male_MTX_comparison)
 # Significant #
@@ -1518,5 +1524,4 @@ sig_effects_WT_M <- coefs[grep("^Age[0-9]+:GroupWT\\+MTX$", rownames(coefs)) , ]
 sig_effects_WT_M <- sig_effects_WT_M[sig_effects_WT_M[, "Pr(>|t|)"] < 0.05, ]
 print(sig_effects_WT_M[, "Pr(>|t|)"])
 ## WT MTX MALE MICE ARE SIGNIFICANTLY SMALLER THAN WT SALINE MALE MICE FROM P22 TO P35 ##
-
 
