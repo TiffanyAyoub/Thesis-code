@@ -636,8 +636,9 @@ if (file.exists("PERMUTATION_RESULTS_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )
-      clm_perm <- suppressWarnings(lmer(cform, data = df_perm))
-      slm <- summary(clm_perm)    
+      suppressWarnings({
+      clm_perm <- lmer(cform, data = df_perm)
+      slm <- summary(clm_perm) })    
       df_dummy[j, allcols] <- as.vector(slm$coefficients)
       df_dummy$Permutation <- p
     }
@@ -824,7 +825,7 @@ if (file.exists("ALLRES_2.RData")){
 } else {
   ## GENERATE TEMPLATE OUTPUT FROM LMER
   cform <- as.formula( paste0("GM"," ~ ",formula_rhs_2) )  
-  clm <- suppressWarnings(lmer(cform, data = df))
+  clm <- lmer(cform, data = df)
   slm <- summary(clm)
   allcols <- as.vector(outer(rownames(slm$coefficients), colnames(slm$coefficients), paste, sep="."))
   allres_2 <- data.frame(Structure=structure_list)
@@ -1023,9 +1024,10 @@ if (file.exists("PERMUTATION_RESULTS_TREATMENT_1000.RData")){
     ## LOOP THROUGH ALL STRUCTURES ##
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
-      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) )  
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) ) 
+      suppressWarnings({
       clm_perm <- lmer(cform, data = df_perm_treat)
-      slm <- summary(clm_perm)    
+      slm <- summary(clm_perm) })    
       df_dummy_treat[j, allcols_2] <- as.vector(slm$coefficients)
       df_dummy_treat$Permutation <- p
     }
@@ -1292,8 +1294,9 @@ if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
-      clm_perm <- suppressWarnings(lmer(cform, data = df_perm_2))
-      slm <- summary(clm_perm)    
+      suppressWarnings({
+      clm_perm <- lmer(cform, data = df_perm_2)
+      slm <- summary(clm_perm) })
       df_dummy_int[j, allcols] <- as.vector(slm$coefficients)
       df_dummy_int$Permutation <- p
     }
