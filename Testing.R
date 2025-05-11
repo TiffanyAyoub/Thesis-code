@@ -1118,14 +1118,14 @@ print( paste0("Median KO-MTX Effect across all structures (MALE, P28): ",as.char
 ####################################################################################################
 
 # Compare F KO vs F WT  
-wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28_pc, F_KO_MTX_28_pc, 
+wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28, F_KO_MTX_28, 
                                             alternative = "two.sided")
 print(wilcox_female_MTX_comparison)
 # Significant #
 # p-value = 0.0009795 #
 
 # Compare M KO vs M WT
-wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28_pc, M_KO_MTX_28_pc, 
+wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28, M_KO_MTX_28, 
                                           alternative = "two.sided")
 print(wilcox_male_MTX_comparison)
 # Significant #
