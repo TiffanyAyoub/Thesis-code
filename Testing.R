@@ -636,7 +636,7 @@ if (file.exists("PERMUTATION_RESULTS_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )
-      suppressWarnings({
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm)
       slm <- summary(clm_perm) })    
       df_dummy[j, allcols] <- as.vector(slm$coefficients)
@@ -1025,7 +1025,7 @@ if (file.exists("PERMUTATION_RESULTS_TREATMENT_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) ) 
-      suppressWarnings({
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm_treat)
       slm <- summary(clm_perm) })    
       df_dummy_treat[j, allcols_2] <- as.vector(slm$coefficients)
@@ -1294,7 +1294,7 @@ if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
-      suppressWarnings({
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm_2)
       slm <- summary(clm_perm) })
       df_dummy_int[j, allcols] <- as.vector(slm$coefficients)
