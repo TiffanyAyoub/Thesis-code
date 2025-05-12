@@ -636,8 +636,9 @@ if (file.exists("PERMUTATION_RESULTS_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm)
-      slm <- summary(clm_perm)    
+      slm <- summary(clm_perm) })    
       df_dummy[j, allcols] <- as.vector(slm$coefficients)
       df_dummy$Permutation <- p
     }
@@ -870,19 +871,19 @@ allres_2$`M_MTX_KO_flag_28.FDR` <- allres_p[(3 * nrow(allres_2) + 1):(4 * nrow(a
 ## FOR INTERPRETABILITY, COMPUTE PERCENT CHANGE IN STRUCTURE VOLS AT P28 ##
 
 ## FOR WT FEMALE ##
-F_WT_MTX_28_pc <- allres_2$F_MTX_WT_flag_28.Estimate / allres_2$age_factor28.Estimate * 100
+F_WT_MTX_28 <- allres_2$F_MTX_WT_flag_28.Estimate / allres_2$age_factor28.Estimate * 100
 
 ## FOR WT MALE ##
-Male_WT_Saline_Estimate_28 <- allres_2$`age_factor28:sex_flag.Estimate` + allres_2$age_factor28.Estimate
-M_WT_MTX_28_pc <- allres_2$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28 * 100
+Male_WT_Saline_28 <- allres_2$`age_factor28:sex_flag.Estimate` + allres_2$age_factor28.Estimate
+M_WT_MTX_28 <- allres_2$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_28 * 100
 
 ## FOR KO FEMALE ##
-F_KO_Saline_28_Estimate <- allres_2$`F_Saline_KO_flag_28.Estimate` + allres_2$age_factor28.Estimate
-F_KO_MTX_28_pc <- allres_2$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate * 100
+F_KO_Saline_28 <- allres_2$`F_Saline_KO_flag_28.Estimate` + allres_2$age_factor28.Estimate
+F_KO_MTX_28 <- allres_2$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28 * 100
 
 ## FOR KO MALE ##
-M_KO_Saline_28_Estimate <- allres_2$`M_Saline_KO_flag_28.Estimate` + Male_WT_Saline_Estimate_28
-M_KO_MTX_28_pc <- allres_2$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate * 100
+M_KO_Saline_28 <- allres_2$`M_Saline_KO_flag_28.Estimate` + Male_WT_Saline_28
+M_KO_MTX_28 <- allres_2$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28 * 100
 
 ## SUMMARIZE # OF AFFECTED STRUCTURES ##
 print(paste0("MTX EFFECT (FEMALE WT, P28, FDR<0.1): ", sum(allres_2$`F_MTX_WT_flag_28.FDR` < 0.1), " structures")) #56
@@ -898,24 +899,9 @@ print(paste0("MTX EFFECT (MALE KO, P28, FDR<0.1): ", sum(allres_2$`M_MTX_KO_flag
 
 ## LOAD DATAFRAME IF RUNNING INTERACTIVELY FROM HERE: load("ALLRES_2.RData")
 
-## WT FEMALE ##
-F_WT_MTX_28_pc <- allres_2$F_MTX_WT_flag_28.Estimate / allres_2$age_factor28.Estimate * 100
-
-## WT MALE ##
-Male_WT_Saline_Estimate_28 <- allres_2$'age_factor28:sex_flag.Estimate' + allres_2$'age_factor28.Estimate'
-M_WT_MTX_28_pc <- allres_2$M_MTX_WT_flag_28.Estimate / Male_WT_Saline_Estimate_28 * 100
-
-## KO FEMALE ##
-F_KO_Saline_28_Estimate <- allres_2$'F_Saline_KO_flag_28.Estimate' + allres_2$'age_factor28.Estimate'
-F_KO_MTX_28_pc <- allres_2$F_MTX_KO_flag_28.Estimate / F_KO_Saline_28_Estimate * 100
-
-## KO MALE ##
-M_KO_Saline_28_Estimate <- allres_2$'M_Saline_KO_flag_28.Estimate' + Male_WT_Saline_Estimate_28
-M_KO_MTX_28_pc <- allres_2$M_MTX_KO_flag_28.Estimate / M_KO_Saline_28_Estimate * 100
-
 ## CREATE COMBINED_DATA WITH SEX AND GENOTYPE ##
 combined_data <- data.frame(
-  Estimate = c(F_WT_MTX_28_pc, M_WT_MTX_28_pc, F_KO_MTX_28_pc, M_KO_MTX_28_pc),
+  Estimate = c(F_WT_MTX_28, M_WT_MTX_28, F_KO_MTX_28, M_KO_MTX_28),
   Sex = rep(c("Female", "Male", "Female", "Male"), each = nrow(allres_2)),
   Genotype = rep(c("WT", "WT", "KO", "KO"), each = nrow(allres_2))
 )
@@ -1038,9 +1024,10 @@ if (file.exists("PERMUTATION_RESULTS_TREATMENT_1000.RData")){
     ## LOOP THROUGH ALL STRUCTURES ##
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
-      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) )  
+      cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs_2) ) 
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm_treat)
-      slm <- summary(clm_perm)    
+      slm <- summary(clm_perm) })    
       df_dummy_treat[j, allcols_2] <- as.vector(slm$coefficients)
       df_dummy_treat$Permutation <- p
     }
@@ -1088,10 +1075,10 @@ perm_medians <- perm_treat_df %>%
     Median_M_KO_MTX = median(M_KO_MTX_28_p)
   )
 
-observed_F_WT_MTX_median <- median(F_WT_MTX_28_pc)
-observed_F_KO_MTX_median <- median(F_KO_MTX_28_pc)
-observed_M_WT_MTX_median <- median(M_WT_MTX_28_pc)
-observed_M_KO_MTX_median <- median(M_KO_MTX_28_pc)
+observed_F_WT_MTX_median <- median(F_WT_MTX_28)
+observed_F_KO_MTX_median <- median(F_KO_MTX_28)
+observed_M_WT_MTX_median <- median(M_WT_MTX_28)
+observed_M_KO_MTX_median <- median(M_KO_MTX_28)
 
 ## STATISTICAL TESTING USING TWO-TAILED EMPERICAL P-VALUE ##
 
@@ -1131,20 +1118,18 @@ print( paste0("Median KO-MTX Effect across all structures (MALE, P28): ",as.char
 ####################################################################################################
 
 # Compare F KO vs F WT  
-wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28_pc, F_KO_MTX_28_pc, 
+wilcox_female_MTX_comparison <- wilcox.test(F_WT_MTX_28, F_KO_MTX_28, 
                                             alternative = "two.sided")
 print(wilcox_female_MTX_comparison)
 # Significant #
 # p-value = 0.0009795 #
-# THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
 # Compare M KO vs M WT
-wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28_pc, M_KO_MTX_28_pc, 
+wilcox_male_MTX_comparison <- wilcox.test(M_WT_MTX_28, M_KO_MTX_28, 
                                           alternative = "two.sided")
 print(wilcox_male_MTX_comparison)
 # Significant #
 # p-value = 6.635e-05 #
-# THE TWO HISTOGRAMS ARE SIGNIFICANTLY DIFFERENCE THAN ONE ANOTHER #
 
 #################################################################################################################
 ## STRUCTUREWISE GENOTYPE × TREATMENT INTERACTION EFFECTS AT P28                                               ##
@@ -1176,8 +1161,8 @@ print( paste0("IL6KO MTX VOL CHANGE (MALE, P28, FDR<0.1): ",as.character(sum( al
 F_INT_28_pc <- (allres$`F_treatment_flag_28:F_genotype_flag_28.Estimate` / allres$`age_factor28.Estimate`) * 100
 
 ## MALE INTERACTION EFFECT P28 ##
-Male_WT_Saline_Estimate_28 <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
-M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28) * 100
+Male_WT_Saline_Estimate_28_INT <- allres$`age_factor28:sex_flag.Estimate` + allres$`age_factor28.Estimate`
+M_INT_28_pc <- (allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28_INT) * 100
 
 # CREATE DATA FRAMES FOR EACH INTERACTION ESTIMATE (ADDING COLUMNS FOR SEX AND INTERACTION)
 m_data_INT <- data.frame(Estimate = M_INT_28_pc, Sex = "Male", Interaction = "M_treatment_flag_28:M_genotype_flag_28")
@@ -1309,8 +1294,9 @@ if (file.exists("PERMUTATION_RESULTS_INT_1000.RData")){
     for (j in 1:length(structure_list)) {
       cstruct <- as.character(structure_list[j])
       cform <- as.formula( paste0("`",cstruct,"`"," ~ ",formula_rhs) )  
+      suppressMessages({
       clm_perm <- lmer(cform, data = df_perm_2)
-      slm <- summary(clm_perm)    
+      slm <- summary(clm_perm) })
       df_dummy_int[j, allcols] <- as.vector(slm$coefficients)
       df_dummy_int$Permutation <- p
     }
