@@ -1147,8 +1147,8 @@ Male_WT_Saline_Estimate_28 <- allres$'age_factor28:sex_flag.Estimate' + allres$'
 M_28_pc <- allres$`M_treatment_flag_28:M_genotype_flag_28.Estimate` / Male_WT_Saline_Estimate_28 * 100
 
 ## SUMMARIZE # OF AFFECTED STRUCTURES ##
-print( paste0("IL6KO MTX VOL CHANGE (FEMALE, P28, FDR<0.1): ",as.character(sum( allres$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #19
-print( paste0("IL6KO MTX VOL CHANGE (MALE, P28, FDR<0.1): ",as.character(sum( allres$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #5
+print( paste0("IL6KO MTX VOL CHANGE (FEMALE, P28, p<0.05): ",as.character(sum( allres$`F_treatment_flag_28:F_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #19
+print( paste0("IL6KO MTX VOL CHANGE (MALE, P28, p<0.05): ",as.character(sum( allres$`M_treatment_flag_28:M_genotype_flag_28.Pr(>|t|)` < 0.05 ))," structures") ) #5
 
 ######################################################################################################
 ## GENERATE HISTOGRAM TO GENERATE GENOTYPE × TREATMENT INTERACTION EFFECTS                          ##
